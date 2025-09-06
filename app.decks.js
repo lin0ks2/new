@@ -1,4 +1,4 @@
-/* app.decks.js v1.2.1
+/* app.decks.js v1.2.2
    ─────────────────────────────────────────────────────────────────────────────
    Ответственность модуля:
    • Регистрация и доступ к наборам слов (деки)
@@ -8,9 +8,14 @@
    • ГАРАНТИЯ УНИКАЛЬНЫХ СТАБИЛЬНЫХ ID:
      - если в исходном словаре id отсутствуют или дублируются, выдаём
        стабильный id на основе hash(dictKey|word)
-   Изменения в этой версии:
-   • Исправлена эвристика для предлогов (регистронезависимая проверка).
-   • Добавлена авто-уникализация id (решает проблему с «Избранным»).
+
+   Изменения в этой версии (1.2.2):
+   • Имя словаря теперь определяется ПРЕЖДЕ ВСЕГО по «блоку» (ключу словаря):
+     - ключ содержит «prep» → «Предлоги/Прийменники»
+     - ключ содержит «verb» → «Глаголы/Дієслова»
+     - ключ содержит «noun» → «Существительные/Іменники»
+     Если явного соответствия нет — используем эвристику по словам.
+   • Эвристика «предлоги» — регистронезависимая, словарь предлогов распознаётся корректно.
    ─────────────────────────────────────────────────────────────────────────────
 */
 
@@ -25,17 +30,14 @@
   // [БЛОК B] Вспомогательные функции (hash, клон, утилиты)
   // ───────────────────────────────────────────────────────────────────────────
   function djb2(str){
-    // простой быстрый 32-битный хеш
     let h = 5381;
     for (let i=0; i<str.length; i++){
       h = ((h << 5) + h) + str.charCodeAt(i);
       h |= 0;
     }
-    // делаем положительным 31-битным
     return h >>> 0;
   }
   function ensureArray(a){ return Array.isArray(a) ? a : []; }
-  function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
 
   // ───────────────────────────────────────────────────────────────────────────
   // [БЛОК C] Гарантия уникальных и стабильных id внутри словаря
@@ -46,17 +48,15 @@
     for (let i=0; i<arr.length; i++){
       const w = arr[i] || {};
       let id = (w.id != null) ? String(w.id) : '';
-      // если id нет или он повторяется — генерируем из hash(dictKey|word)
       if (!id || seen.has(id)){
         const wordKey = String(w.word || '').trim();
         const base = `${dictKey}|${wordKey}`;
         id = String(djb2(base));
-        // если вдруг коллизия, слегка двигаем солью
         let salt = 1;
         while (seen.has(id)) {
           id = String(djb2(base + '#' + (++salt)));
         }
-        w.id = +id; // храним числом
+        w.id = +id;
       }
       seen.add(String(w.id));
       arr[i] = w;
@@ -90,15 +90,12 @@
       // (1) предлоги — проверяем строго по словарю без учёта регистра
       if (PREP_SET.has(sLow)) { preps++; continue; }
 
-      // (2) существительные — допускаем артикль + Заглавная
-      //    пример: "der Tisch", "die Zeit", "das Geld"
-      //    или одиночное слово с Заглавной (немецкие существительные)
+      // (2) существительные — артикль + Заглавная или одиночная Заглавная
       if (/^(der|die|das)\s+[A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*$/.test(s) || /^[A-ZÄÖÜ]/.test(s)){
-        nouns++;
-        continue;
+        nouns++; continue;
       }
 
-      // (3) глаголы — чаще всего в инфинитиве: …en / …eln / …ern
+      // (3) глаголы — инфинитив: …en / …eln / …ern
       if (/^[a-zäöü].*(en|eln|ern)$/.test(sLow)) { verbs++; continue; }
 
       // (4) прилагательные по суффиксам
@@ -106,7 +103,6 @@
     }
 
     const r = x => x / Math.max(1, checked);
-    // пороги подбирались эмпирически, для предлогов делаем более мягкий
     if (r(preps) > 0.35) return 'preps';
     if (r(verbs) > 0.5)  return 'verbs';
     if (r(nouns) > 0.5)  return 'nouns';
@@ -132,9 +128,20 @@
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  // [БЛОК E] Флаги, имена, доступ к словарям
+  // [БЛОК E] Классификация по КЛЮЧУ словаря (главное правило имени)
   // ───────────────────────────────────────────────────────────────────────────
-  // Для «Избранного» — сердечко, для остальных — 🇩🇪 (немецкий)
+  function classifyByKey(key){
+    const k = String(key||'').toLowerCase();
+    // покрытия распространённых вариантов имён ключей:
+    if (/prep|предлог|praep|präpos|praeposition|präposition/.test(k)) return 'preps';
+    if (/verb|глагол|verben/.test(k))                                 return 'verbs';
+    if (/noun|nomen|существ|nouns/.test(k))                           return 'nouns';
+    return 'misc';
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // [БЛОК F] Флаги, имена, доступ к словарям
+  // ───────────────────────────────────────────────────────────────────────────
   function flagForKey(key, words){
     if (key === 'fav' || key === 'favorites') return '♥';
     return '🇩🇪';
@@ -145,11 +152,16 @@
       const t = App.i18n ? App.i18n() : (window.I18N?.uk || {});
       return t.favTitle || 'Обране';
     }
+
+    // 1) сначала — чётко по «блоку» ключа
+    const cls = classifyByKey(key);
+    if (cls !== 'misc') return posLabel(cls);
+
+    // 2) иначе — эвристика по словам
     const words = decksNS.resolveDeckByKey(key) || [];
     return defaultDictName(words);
   }
 
-  // Возвращает список ключей встроенных словарей (с непустыми массивами)
   function builtinKeys(){
     const out = [];
     const d = window.decks || {};
@@ -160,7 +172,6 @@
     return out.sort();
   }
 
-  // Подключение словарей: убедимся в уникальных id
   function prepareDeck(key){
     const d = window.decks || {};
     if (!Array.isArray(d[key])) return [];
@@ -171,11 +182,9 @@
   function resolveDeckByKey(key){
     if (!key) return [];
     if (key === 'fav' || key === 'favorites'){
-      // конструируем список избранного по сохранённым id
       const all = [];
       const d = window.decks || {};
       for (const k of Object.keys(d)){ all.push(...ensureArray(d[k])); }
-      // плюс пользовательские, если есть
       const reg = App.dictRegistry || {};
       for (const uk of Object.keys(reg.user || {})){
         all.push(...ensureArray(reg.user[uk]?.words));
@@ -184,12 +193,10 @@
       const favIds = Object.keys(App.state?.favorites || {}).filter(id => App.state.favorites[id]);
       return favIds.map(id => byId.get(+id)).filter(Boolean);
     }
-    // обычный словарь
     return prepareDeck(key);
   }
 
   function pickDefaultKey(){
-    // если фаворитов ≥4 — показываем «Избранное»
     const fav = resolveDeckByKey('fav');
     if (fav && fav.length >= 4) return 'fav';
     const built = builtinKeys();
@@ -197,7 +204,7 @@
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  // [БЛОК F] Предпросмотр словаря
+  // [БЛОК G] Предпросмотр словаря
   // ───────────────────────────────────────────────────────────────────────────
   function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
 
@@ -229,7 +236,7 @@
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  // [БЛОК G] Публичный API
+  // [БЛОК H] Публичный API
   // ───────────────────────────────────────────────────────────────────────────
   decksNS.flagForKey       = flagForKey;
   decksNS.resolveNameByKey = resolveNameByKey;

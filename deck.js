@@ -1610,10 +1610,7 @@ window.decks.de_nouns = [
   { id: 997,  word: "das Modul", uk: "модуль", ru: "модуль" },
   { id: 998,  word: "die Schnittstelle", uk: "інтерфейс (API)", ru: "интерфейс (API)" },
   { id: 999,  word: "die Dokumentation", uk: "документація", ru: "документация" },
-  { id: 1000, word: "die Veröffentlichung", uk: "публікація, реліз", ru: "публикация, релиз" }
-];
-
-// конец!
+  { id: 1000, word: "die Veröffentlichung", uk: "публікація, реліз", ru: "публикация, релиз" },
 
 //* ===========================
    Разговорные ПРЕДЛОГИ (≈100)

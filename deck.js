@@ -1615,7 +1615,7 @@ window.decks.de_nouns = [
 
 // конец!
 
-// --- German prepositions deck (200) ---
+// --- German prepositions deck (100) ---
 
 window.decks.de_preps = [
   {id:1, word:"in", gov:"Akk/Dat", ru:"в; внутри", uk:"в; всередині", note:"Akk — направление, Dat — положение" },

@@ -1,0 +1,222 @@
+/* style.css v1.0.4 — компактная модалка; фиксация зоны действий словарей; "Не знаю" по центру */
+:root{
+  --bg:#f6f7fb; --card:#fff; --text:#1f2430; --muted:#6b7280;
+  --green:#16a34a; --red:#dc2626; --border:#e5e7eb; --shadow:0 10px 30px rgba(16,24,40,.08);
+  --mint:#34d399; --mint-strong:#10b981; --mint-weak:#d1fae5;
+  --overlay:rgba(15,23,42,.6);
+}
+:root[data-theme="dark"]{
+  --bg:#0b1020; --card:#0f172a; --text:#e5e7eb; --muted:#9ca3af;
+  --green:#22c55e; --red:#ef4444; --border:#1f2937; --shadow:0 10px 30px rgba(0,0,0,.4);
+  --mint:#34d399; --mint-strong:#10b981; --mint-weak:#0b3b2f;
+  --overlay:rgba(2,6,23,.7);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  background:var(--bg); color:var(--text);
+  display:flex; flex-direction:column;
+}
+
+/* Header */
+header{
+  padding:10px 14px;
+  display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:nowrap;
+  background:#fff; border-bottom:1px solid var(--border);
+}
+:root[data-theme="dark"] header{ background:var(--card); }
+.brand h1{font-size:26px;margin:0;font-weight:800}
+.brand .tagline{font-size:13px;color:var(--muted)}
+.ver{font-size:12px;color:var(--muted);margin-left:6px}
+.iconBtn{width:40px;height:40px;padding:0;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;border:1px solid var(--border);background:#fff;cursor:pointer;transition:transform .12s ease}
+.iconBtn:active{transform:scale(0.95)}
+.gear.spin{animation:spin .6s ease}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
+/* Main Card */
+main{flex:1;display:grid;place-items:center;padding:14px}
+.card{
+  width: 640px; max-width: 94vw;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:24px;
+  box-shadow:var(--shadow);
+  text-align:center;
+}
+
+.topRow{
+  display:flex; align-items:center; justify-content:space-between;
+  min-height:40px; margin-bottom:4px;
+}
+.stars{display:flex; gap:6px; align-items:center}
+.starIcon{font-size:22px;color:#cbd5e1}
+.starIcon.filled{color:#fbbf24}
+
+.heart{
+  font-size:22px; background:none; border:none; cursor:pointer;
+  transition:transform .2s ease; color:inherit; line-height:1;
+  width:22px; height:22px; display:flex; align-items:center; justify-content:center;
+}
+.heart:active{transform:scale(0.9)}
+
+.word{font-size:36px; font-weight:800; margin:6px 0 2px; line-height:1.15}
+.hint{color:var(--muted); margin-bottom:12px; font-size:14px}
+
+/* Options grid */
+.options{
+  display:grid; grid-template-columns: 1fr 1fr;
+  gap:12px; justify-items:stretch; margin:14px 0 12px;
+}
+@media (max-width:420px){ .options{ grid-template-columns: 1fr; } }
+
+/* "Не знаю" — по центру всегда */
+.idkWrapper{
+  grid-column: 1 / -1;
+  display:flex; justify-content:center; margin-top:6px;
+}
+
+button{
+  padding:0 14px; border-radius:14px; font-size:17px; cursor:pointer;
+  transition:background .2s, transform .06s ease, filter .2s;
+}
+.optionBtn{
+  height:52px; border:none; color:#073b3a; background:var(--mint); font-weight:600; outline:none;
+}
+.optionBtn:focus{ outline:none; box-shadow:none; }
+.optionBtn:active{ transform:scale(0.98); }
+.optionBtn.correct{ background:var(--green); color:#fff; }
+.optionBtn.wrong{ background:var(--red); color:#fff; }
+
+/* "Не знаю" */
+button.ghost{
+  background:#f3f4f6; border:none; color:#111827;
+  margin-top:6px; height:42px; padding:0 16px;
+  border-radius:12px; font-size:15px; font-weight:600;
+  display:flex; align-items:center; justify-content:center;
+}
+:root[data-theme="dark"] button.ghost{
+  background:#1f2937; color:#e5e7eb; border:1px solid #374151; box-shadow:0 0 0 3px rgba(55,65,81,.22) inset;
+}
+button.ghost:hover{ filter:brightness(1.06); }
+
+/* Stats */
+.statsBar{
+  margin-top:8px; font-size:12px; color:var(--muted);
+  border:1px solid var(--border); border-radius:10px; padding:6px 10px;
+  display:inline-block; background:#fff;
+}
+:root[data-theme="dark"] .statsBar{ background:var(--card); color:var(--muted); border-color:var(--border); }
+
+/* Modal */
+.modal.hidden{display:none}
+.modal{position:fixed; inset:0; display:grid; place-items:center; z-index:50}
+.backdrop{position:absolute; inset:0; background:var(--overlay)}
+.dialog{
+  position:relative; z-index:10;
+  background:#fff; border:1px solid var(--border); border-radius:14px;
+  padding:14px;
+  box-shadow:var(--shadow);
+  width:min(860px,94vw); max-height:90vh; overflow:auto;
+}
+:root[data-theme="dark"] .dialog{ background:var(--card); }
+.dialog h2{ text-align:center; margin:0 0 8px; font-size:26px; }
+
+/* Settings */
+.field{ margin:10px 0; text-align:center; }
+.field .label{ font-weight:700; margin-bottom:6px; text-align:center; font-size:16px; }
+.field .row{ display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+
+/* Pills */
+.pills .pill{
+  display:inline-flex; align-items:center; gap:6px;
+  border:1px solid var(--border); background:#fff; color:inherit;
+  padding:6px; border-radius:12px; cursor:pointer;
+  width:40px; height:40px; font-size:18px; justify-content:center;
+}
+:root[data-theme="dark"] .pills .pill{ background:var(--card); color:var(--text); }
+.pills .pill.selected{ border-color:var(--mint); background:var(--mint-weak); }
+#langPills .pill span, #themePills .pill span{ display:none; }
+
+/* Complexity stars */
+.repeatPicker{ display:flex; justify-content:center; gap:6px; align-items:center; }
+.rpStar{
+  border:none; background:none; font-size:24px; cursor:pointer; line-height:1; color:#9ca3af;
+}
+.rpStar.filled{ color:#f59e0b; }
+.rpStar:active{ transform:scale(0.95); }
+
+/* Dict list — сетка с фиксированной колонкой под действия */
+.dictList{
+  display:flex; flex-direction:column; gap:6px; margin-top:6px;
+  max-height:200px; overflow-y:auto;
+}
+/* Три колонки: флаг | имя (растяг.) | действия (фикс.) */
+.dictRow{
+  display:grid;
+  grid-template-columns: 22px 1fr 110px;
+  align-items:center; gap:8px;
+  padding:8px 10px;
+  border:1px solid var(--border); border-radius:12px; background:#fff;
+}
+:root[data-theme="dark"] .dictRow{ background:var(--card); }
+.dictRow.active{
+  border-color:var(--mint); background:var(--mint-weak);
+  box-shadow:0 0 0 2px rgba(52,211,153,.12) inset;
+}
+.dictFlag{ font-size:16px; width:22px; text-align:center; }
+.dictName{
+  font-weight:600; font-size:15px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left; cursor:pointer;
+}
+.dictActions{ display:flex; gap:6px; justify-content:flex-end; }
+.iconOnly{
+  width:30px; height:30px; border:1px solid var(--border); border-radius:10px; background:#fff; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; font-size:15px;
+}
+:root[data-theme="dark"] .iconOnly{ background:var(--card); }
+.iconOnly:hover{ filter:brightness(1.06); }
+.iconOnly:active{ transform:scale(0.96); }
+
+/* Импорт — (в этой версии отключен, кнопки нет) */
+
+/* OK — компактнее */
+.modalActions{ display:flex; justify-content:center; margin-top:10px; }
+.modalActions .primary{
+  padding:9px 20px; font-size:15px; border-radius:10px;
+  background:var(--mint); border:none; color:#073b3a;
+}
+.modalActions .primary:hover{ background:var(--mint-strong); color:#fff; }
+
+/* Footer */
+footer{
+  padding:10px 14px; color:#6b7280;
+  border-top:1px solid var(--border);
+  font-size:13px; text-align:center
+}
+.copyright{color:#6b7280}
+
+/* Small screens */
+@media (max-width:600px){
+  .brand h1{font-size:22px}
+  .card{ padding:20px }
+  .word{font-size:30px}
+  .optionBtn{font-size:15px; height:50px}
+}
+/* === Патч: верхние кнопки (тема, язык, словарь) в одну линию === */
+header .controls {
+  display: flex;
+  flex-direction: row !important; /* принудительно в ряд */
+  gap: 10px;
+  align-items: center;
+  z-index: 10; /* чтобы они были поверх и кликабельные */
+}
+
+header .controls .iconBtn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+/* конец! */

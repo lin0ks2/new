@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Кристина — тренажер слів</title>
+  <link rel="stylesheet" href="./style.css?v=1.3.1" />
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1 id="title">Кристина <span class="ver" id="appVer"></span></h1>
+      <div class="tagline" id="tagline">Вона навчить!</div>
+    </div>
+    <div class="controls">
+      <button id="themeToggleBtn" class="iconBtn" title="Theme" aria-label="Theme">🌞</button>
+      <button id="langToggleBtn"  class="iconBtn" title="Language" aria-label="Language">🇺🇦</button>
+      <button id="dictsBtn"       class="iconBtn gear" title="Словники" aria-label="Словники">📚</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="topRow">
+        <div class="stars" id="stars"></div>
+        <button id="favBtn" class="heart" title="Обране" aria-label="Додати в обране">♡</button>
+      </div>
+
+      <div class="word" id="wordText">—</div>
+      <div class="hint" id="hintText">—</div>
+
+      <div class="options" id="optionsRow"></div>
+
+      <div class="statsBar" id="statsBar">
+        Всього слів: 0 / Вивчено: 0 / Помилок: 0
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="copyright">
+      © All rights reserved · <span id="copyYear"></span>
+    </div>
+  </footer>
+
+  <!-- Модалка словарей -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="backdrop" id="backdrop"></div>
+    <div class="dialog">
+      <h2 id="modalTitle">Словники</h2>
+      <div class="field">
+        <div class="dictList" id="dictList"><!-- rows --></div>
+      </div>
+      <div class="modalActions">
+        <button id="okBtn" class="primary">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data: подключите реальный deck.js с де-фактo массивами de_verbs и de_nouns -->
+  <script src="./deck.js?v=1.3.1"></script>
+  <script src="./dicts.js?v=1.3.1"></script>
+
+  <!-- Logic -->
+  <script src="./i18n.js?v=1.3.1"></script>
+  <script src="./theme.js?v=1.3.1"></script>
+  <script src="./app.core.js?v=1.3.1"></script>
+  <script src="./app.decks.js?v=1.3.1"></script>
+  <script src="./app.trainer.js?v=1.3.1"></script>
+  <script src="./app.ui.js?v=1.3.1"></script>
+</body>
+</html>
+<!-- конец! -->

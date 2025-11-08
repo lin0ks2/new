@@ -1,6 +1,6 @@
 /* MOYAMOVA Service Worker — v4 (без offline.html) */
 const ROOT = new URL('./', self.location).pathname.replace(/\/$/, '');
-const CACHE_NAME = 'moyamova-cache-v4';
+const CACHE_NAME = 'moyamova-cache-v5';
 
 // Минимальный app shell: только то, что нужно для запуска
 const APP_SHELL = [
@@ -49,4 +49,13 @@ self.addEventListener('fetch', (event) => {
       return cached || fetchPromise;
     })
   );
+});
+
+
+/* Allow clients to trigger activation immediately */
+self.addEventListener('message', (event) => {
+  const data = event.data || {};
+  if (data && data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });

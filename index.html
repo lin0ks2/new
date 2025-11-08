@@ -285,8 +285,7 @@
     if(levelToggle){ levelToggle.addEventListener('change', e=>{ document.documentElement.dataset.level = e.target.checked ? 'hard' : 'normal'; }); }
 
     // Проверка обновлений (заглушка)
-    const btnCheckUpdates = document.getElementById('btnCheckUpdates');
-    if(btnCheckUpdates){ btnCheckUpdates.addEventListener('click', ()=>{ alert('Проверка обновлений (заглушка)'); }); }
+    
 
     // Версия приложения (app.core.js → App.APP_VER)
     (function(){
@@ -398,5 +397,6 @@
   </div>
   <script src="./js/theme.js" defer></script>
 
+<script src="./js/updates.js" defer></script>
 </body>
 </html>

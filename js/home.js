@@ -99,7 +99,7 @@
     const bar = document.getElementById('setsBar');
     if (!vp || !bar) return;
 
-    // ... остальной код renderSets() из сборки ...
+    // ... существующий код renderSets() ...
   }
 
   /* --------------------------- Зона 2: Подсказки ------------------------ */
@@ -110,6 +110,10 @@
   }
 
   /* ---------------------------- Зона 3: Тренер -------------------------- */
+  function starKey(wordId, deckKey){
+    return String(deckKey||'') + '::' + String(wordId||'');
+  }
+
   function getStars(wordId){
     const key = activeDeckKey();
     const val = (A.state && A.state.stars && A.state.stars[starKey(wordId, key)]) || 0;
@@ -128,11 +132,76 @@
 
   function buildOptions(word){
     const key = activeDeckKey();
-    // ... остальной код buildOptions() из сборки ...
+    const fullDeck = (A.Decks && A.Decks.resolveDeckByKey) ? (A.Decks.resolveDeckByKey(key) || []) : [];
+    const opts = (A.Trainer && typeof A.Trainer.buildOptions==='function')
+      ? A.Trainer.buildOptions(word, fullDeck)
+      : [];
+    return opts;
   }
 
   function bindTrainer(){
-    // ... весь существующий код тренера из сборки ...
+    const answers = document.getElementById('answers');
+    const statsBox = document.getElementById('trainerStats');
+    if (!answers) return;
+
+    function renderQuestion(){
+      const cur = (A.Trainer && typeof A.Trainer.current==='function') ? A.Trainer.current() : null;
+      if (!cur){ answers.innerHTML = ''; return; }
+
+      renderStarsFor(cur.word);
+
+      const options = buildOptions(cur.word);
+      const T = tUI();
+      let html = '';
+      for (let i=0;i<options.length;i++){
+        const o = options[i];
+        html += `<button class="answer-btn" data-id="${o.id}">${o.t || o.translation || ''}</button>`;
+      }
+      answers.innerHTML = html;
+
+      if (statsBox){
+        try{
+          const s = (A.Trainer && typeof A.Trainer.stats==='function') ? A.Trainer.stats() : null;
+          if (s){
+            statsBox.innerHTML = `<div class="stats-row">#${s.index+1} / ${s.total}</div>`;
+          }
+        }catch(_){}
+      }
+    }
+
+    answers.addEventListener('click', (e)=>{
+      const btn = e.target.closest('.answer-btn');
+      if (!btn) return;
+      const id = btn.getAttribute('data-id');
+      try{
+        if (A.Trainer && typeof A.Trainer.answer==='function'){
+          A.Trainer.answer(id);
+          renderQuestion();
+        }
+      }catch(_){}
+    });
+
+    // «Не знаю» и «В избранное»
+    document.querySelector('.idk-btn')?.addEventListener('click', ()=>{
+      try{
+        if (A.Trainer && typeof A.Trainer.idk==='function'){ A.Trainer.idk(); renderQuestion(); }
+      }catch(_){}
+    });
+
+    document.querySelector('.fav-btn')?.addEventListener('click', ()=>{
+      try{
+        if (!A.Trainer || !A.Trainer.current) return;
+        const cur = A.Trainer.current();
+        if (!cur || !cur.word) return;
+        const baseKey = (A.Trainer.getBaseKey && A.Trainer.getBaseKey()) || (A.Trainer.getDeckKey && A.Trainer.getDeckKey());
+        if (A.Favorites && typeof A.Favorites.toggle==='function' && baseKey){
+          A.Favorites.toggle(baseKey, cur.word.id);
+        }
+      }catch(_){}
+    });
+
+    // первый рендер
+    renderQuestion();
   }
 
   /* ------------------------------ ЯЗЫК/ТЕМА ----------------------------- */
@@ -157,28 +226,15 @@
         const act = btn.getAttribute('data-action');
         if (!act) return;
 
-        // === Избранное: ведём как полноценный экран с фиксацией "текущего роута" ===
+        // --- Избранное: фиксируем текущий роут и не дергаем Router ---
         if (act === 'fav') {
-          // 1) смонтировать экран
-          try { window.App && App.ViewFavorites && App.ViewFavorites.mount && App.ViewFavorites.mount(); } catch(e){ console.warn(e); }
-          // 2) подсветить активную кнопку
-          try {
-            document.querySelectorAll('.app-footer .nav-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-          } catch(_) {}
-          // 3) запомнить текущий роут для корректного поведения при смене языка
-          try { window.A && (A.Router = A.Router || {}); A.Router.current = 'fav'; } catch(_){}
-          // 4) fallback для слушателей data-route (если где-то есть)
-          try { document.body.setAttribute('data-route', 'fav'); window.dispatchEvent(new Event('lexitron:route-changed')); } catch(_){}
-          return; // не проваливаемся в Router.routeTo(...)
+          try { window.A = window.A || {}; A.Router = A.Router || {}; A.Router.current = 'fav'; } catch(_) {}
+          try { document.body.setAttribute('data-route','fav'); } catch(_) {}
+          return;
         }
 
-        // Остальные экраны — как было
-        try {
-          if (window.Router && typeof Router.routeTo === 'function') {
-            Router.routeTo(act);
-          }
-        } catch(e){ console.warn(e); }
+        // Остальные — как было
+        try { Router.routeTo(act); } catch(e){ console.warn(e); }
       });
     });
   }

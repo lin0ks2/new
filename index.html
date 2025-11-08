@@ -3,59 +3,82 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-
+  <meta name="color-scheme" content="light dark">
   <title>MOYAMOVA — тренажёр немецких слов (DE ⇄ RU/UK)</title>
   <meta name="description" content="MOYAMOVA — лёгкий офлайн-тренажёр карточек с немецкими словами: избранное, ошибки, импорт/экспорт, работает как PWA даже без интернета.">
   <meta name="robots" content="index,follow">
   <meta name="theme-color" content="#ffffff">
-
-  <!-- Open Graph -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/theme.light.css">
+  <link rel="stylesheet" href="./css/theme.dark.css">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" type="image/png" sizes="192x192" href="./img/android-chrome-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="./img/android-chrome-512x512.png">
+  <link rel="icon" type="image/png" sizes="120x120" href="./img/apple-touch-icon-120x120.png">
+  <link rel="icon" type="image/png" sizes="152x152" href="./img/apple-touch-icon-152x152.png">
+  <link rel="icon" type="image/png" sizes="180x180" href="./img/apple-touch-icon-180x180.png">
+  <link rel="icon" type="image/png" sizes="76x76" href="./img/apple-touch-icon-76x76.png">
+  <link rel="icon" type="image/svg+xml" href="./img/book.svg">
+  <link rel="icon" type="image/svg+xml" href="./img/book_active.svg">
+  <link rel="icon" type="image/svg+xml" href="./img/book_dark.svg">
+  <link rel="icon" type="image/svg+xml" href="./img/book_hover.svg">
+  <link rel="icon" type="image/png" sizes="128x128" href="./img/favicon-128x128.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="./img/favicon-16x16.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="./img/favicon-192x192.png">
+  <link rel="icon" type="image/png" sizes="256x256" href="./img/favicon-256x256.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="./img/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="48x48" href="./img/favicon-48x48.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="./img/favicon-512x512.png">
+  <link rel="icon" href="./img/favicon.ico">
+  <link rel="icon" type="image/svg+xml" href="./img/home.svg">
+  <link rel="icon" type="image/svg+xml" href="./img/home_active.svg">
+  <link rel="icon" type="image/svg+xml" href="./img/home_dark.svg">
+  <link rel="icon" type="image/svg+xml" href="./img/home_hover.svg">
+  <link rel="icon" type="image/png" sizes="128x128" href="./img/logo_128.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="./img/logo_32.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="./img/logo_512.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="./img/logo_64.png">
+  <link rel="icon" type="image/png" href="./img/og-cover.PNG">
+  <link rel="icon" type="image/svg+xml" href="./img/star.svg">
+  <link rel="icon" type="image/svg+xml" href="./img/star_active.svg">
+  <link rel="icon" type="image/svg+xml" href="./img/star_dark.svg">
+  <link rel="icon" type="image/svg+xml" href="./img/star_hover.svg">
+  <link rel="icon" type="image/svg+xml" href="./img/stats.svg">
+  <link rel="icon" type="image/svg+xml" href="./img/stats_active.svg">
+  <link rel="icon" type="image/svg+xml" href="./img/stats_dark.svg">
+  <link rel="icon" type="image/svg+xml" href="./img/stats_hover.svg">
+  <link rel="icon" type="image/svg+xml" href="./img/warning.svg">
+  <link rel="icon" type="image/svg+xml" href="./img/warning_active.svg">
+  <link rel="icon" type="image/svg+xml" href="./img/warning_dark.svg">
+  <link rel="icon" type="image/svg+xml" href="./img/warning_hover.svg">
+  <link rel="apple-touch-icon" sizes="192x192" href="./img/android-chrome-192x192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="./img/android-chrome-512x512.png">
+  <link rel="apple-touch-icon" sizes="120x120" href="./img/apple-touch-icon-120x120.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="./img/apple-touch-icon-152x152.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="./img/apple-touch-icon-180x180.png">
+  <link rel="apple-touch-icon" sizes="128x128" href="./img/favicon-128x128.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="./img/favicon-192x192.png">
+  <link rel="apple-touch-icon" sizes="256x256" href="./img/favicon-256x256.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="./img/favicon-512x512.png">
+  <link rel="apple-touch-icon" sizes="128x128" href="./img/logo_128.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="./img/logo_512.png">
+  <link rel="canonical" href="https://moyamova.online/">
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="MOYAMOVA">
   <meta property="og:title" content="MOYAMOVA — тренажёр немецких слов (DE ⇄ RU/UK)">
   <meta property="og:description" content="Лёгкий офлайн-тренажёр карточек: немецкие слова, избранное, ошибки, бэкап. Работает как PWA.">
   <meta property="og:locale" content="ru_RU">
-  <!-- При деплое укажи абсолютный адрес проекта -->
-  <!-- <meta property="og:url" content="https://your-domain.example/moyamova/"> -->
-  <!-- <meta property="og:image" content="https://your-domain.example/moyamova/img/share.png"> -->
-
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary">
+  <meta property="og:url" content="https://moyamova.online/">
+  <meta property="og:image" content="https://moyamova.online/img/logo_512.png">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="MOYAMOVA — тренажёр немецких слов (DE ⇄ RU/UK)">
-  <meta name="twitter:description" content="Лёгкий офлайн-тренажёр карточек с немецкими словами. Работает как PWA.">
-  <!-- <meta name="twitter:image" content="https://your-domain.example/moyamova/img/share.png"> -->
-
-  <!-- Canonical (заполни абсолютный URL при деплое) -->
-  <!-- <link rel="canonical" href="https://your-domain.example/moyamova/"> -->
-
-  <!-- PWA -->
-  <link rel="manifest" href="./manifest.webmanifest">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-
-  <!-- Иконки (оставь как у тебя; строки ниже — безопасные дефолты, если уже есть свои — не дублируй) -->
-  <link rel="icon" sizes="32x32" href="./favicon-32.png">
-  <link rel="icon" sizes="192x192" href="./icon-192.png">
-  <link rel="apple-touch-icon" href="./icon-192.png">
-
-  <!-- Шрифты/префетчи (опционально; если уже подключены — не дублируй) -->
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <!-- <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet"> -->
-
-  <!-- Стили -->
-  <link rel="stylesheet" href="./css/theme.light.css" media="(prefers-color-scheme: light)">
-  <link rel="stylesheet" href="./css/theme.dark.css" media="(prefers-color-scheme: dark)">
-
-  <!-- Регистрация SW -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js');
-      });
-    }
-  </script>
+  <meta name="twitter:description" content="Лёгкий офлайн-тренажёр карточек: немецкие слова, избранное, ошибки, бэкап. Работает как PWA.">
+  <meta name="twitter:image" content="https://moyamova.online/img/logo_512.png">
 </head>
 <body>
+
   <header class="header">
     <div class="brand">
       <a class="brand-link" href="./" aria-label="Главная" aria-label="" data-i18n-aria="ariaHome">
@@ -405,5 +428,6 @@
     </div>
   </div>
   <script src="./js/theme.js" defer></script>
+
 </body>
 </html>

@@ -1,30 +1,35 @@
-// updates.js — Live update with i18n toast + smooth reload
+// updates.js — Live update with i18n toast + smooth reload (dynamic language)
 (function(){
-  const lang = (document.documentElement.dataset.lang || (navigator.language||'ru').slice(0,2) || 'ru').toLowerCase();
-  const T = {
-    ru: {
-      checking: 'Проверяю обновления…',
-      found:    'Найдена новая версия. Обновляю…',
-      upToDate: 'У вас актуальная версия',
-      reloading:'Перезапускаю…'
-    },
-    uk: {
-      checking: 'Перевіряю оновлення…',
-      found:    'Знайдено нову версію. Оновлюю…',
-      upToDate: 'У вас актуальна версія',
-      reloading:'Перезапускаю…'
-    },
-    en: {
-      checking: 'Checking for updates…',
-      found:    'New version found. Updating…',
-      upToDate: 'You’re on the latest version',
-      reloading:'Reloading…'
-    }
-  };
-  function t(k){ return (T[lang] && T[lang][k]) || (T.ru && T.ru[k]) || k; }
+  function resolveLang(){
+    var l = (document.documentElement && document.documentElement.dataset && document.documentElement.dataset.lang) || '';
+    l = (l||'').toLowerCase();
+    try {
+      if (!l && window.App) {
+        if (typeof App.getUiLang === 'function') l = (App.getUiLang()||'').toLowerCase();
+        else if (App.UI_LANG) l = (''+App.UI_LANG).toLowerCase();
+        else if (App.uiLang) l = (''+App.uiLang).toLowerCase();
+      }
+    } catch(_){}
+    try {
+      if (!l) l = (localStorage.getItem('ui_lang') || localStorage.getItem('uiLang') || '').toLowerCase();
+    } catch(_){}
+    if (!l) l = ((navigator.language||'ru').slice(0,2) || 'ru').toLowerCase();
+    if (l === 'ua') l = 'uk';
+    if (!/^(ru|uk|en)$/.test(l)) l = 'en';
+    return l;
+  }
 
-  // ---- Toast UI ----
-  let toastRoot, styleTag, overlayEl;
+  function dict(lang){
+    var T = {
+      ru: { checking:'Проверяю обновления…', found:'Найдена новая версия. Обновляю…', upToDate:'У вас актуальная версия', reloading:'Перезапускаю…' },
+      uk: { checking:'Перевіряю оновлення…', found:'Знайдено нову версію. Оновлюю…', upToDate:'У вас актуальна версія', reloading:'Перезапускаю…' },
+      en: { checking:'Checking for updates…', found:'New version found. Updating…', upToDate:'You’re on the latest version', reloading:'Reloading…' }
+    };
+    return T[lang] || T.en;
+  }
+  function t(k){ return dict(resolveLang())[k] || k; }
+
+  var toastRoot, styleTag, overlayEl;
   function ensureUI(){
     if (!styleTag){
       styleTag = document.createElement('style');
@@ -45,15 +50,18 @@
       document.body.appendChild(toastRoot);
     }
   }
-  function showToast(text, ms=1400){
+  function showToast(text, ms){
     ensureUI();
-    const el = document.createElement('div');
+    var el = document.createElement('div');
     el.className = 'toast show';
     el.setAttribute('role','status');
     el.setAttribute('aria-live','polite');
     el.textContent = text;
     toastRoot.appendChild(el);
-    setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .18s ease'; setTimeout(()=>el.remove(), 220); }, ms);
+    setTimeout(function(){
+      el.style.opacity='0'; el.style.transition='opacity .18s ease';
+      setTimeout(function(){ el.remove(); }, 220);
+    }, ms || 1400);
   }
   function showOverlay(show){
     ensureUI();
@@ -61,38 +69,34 @@
       overlayEl = document.createElement('div');
       overlayEl.className = 'update-scrim';
       document.body.appendChild(overlayEl);
-      // async to allow paint
-      requestAnimationFrame(()=> overlayEl.classList.add('show'));
+      requestAnimationFrame(function(){ overlayEl.classList.add('show'); });
     } else if (!show && overlayEl){
       overlayEl.classList.remove('show');
-      setTimeout(()=>{ overlayEl && overlayEl.remove(); overlayEl=null; }, 200);
+      setTimeout(function(){ if (overlayEl){ overlayEl.remove(); overlayEl=null; } }, 200);
     }
   }
 
   async function checkForUpdates() {
     showToast(t('checking'), 1200);
     if (!('serviceWorker' in navigator)) { location.reload(); return; }
-    const reg = await navigator.serviceWorker.getRegistration();
+    var reg = await navigator.serviceWorker.getRegistration();
     if (!reg) { location.reload(); return; }
 
-    // Ask browser to check for an updated SW
-    await reg.update().catch(()=>{});
+    await reg.update().catch(function(){});
 
     if (reg.waiting) {
-      // Smooth upgrade
       showToast(t('found'), 1200);
       showOverlay(true);
       try { sessionStorage.setItem('moya_upgrading','1'); } catch(_){}
       reg.waiting.postMessage({type:'SKIP_WAITING'});
-      await new Promise(res => navigator.serviceWorker.addEventListener('controllerchange', ()=>res(), {once:true}));
+      await new Promise(function(res){ navigator.serviceWorker.addEventListener('controllerchange', function(){ res(); }, {once:true}); });
       showToast(t('reloading'), 800);
-      setTimeout(()=> location.reload(), 200);
+      setTimeout(function(){ location.reload(); }, 200);
       return;
     }
 
     if (reg.installing) {
-      // Wait till it becomes waiting
-      await new Promise(res => {
+      await new Promise(function(res){
         reg.installing.addEventListener('statechange', function onsc(){
           if (reg.waiting) { reg.installing.removeEventListener('statechange', onsc); res(); }
         });
@@ -100,30 +104,34 @@
       showToast(t('found'), 1200);
       showOverlay(true);
       try { sessionStorage.setItem('moya_upgrading','1'); } catch(_){}
-      reg.waiting && reg.waiting.postMessage({type:'SKIP_WAITING'});
-      await new Promise(res => navigator.serviceWorker.addEventListener('controllerchange', ()=>res(), {once:true}));
+      if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
+      await new Promise(function(res){ navigator.serviceWorker.addEventListener('controllerchange', function(){ res(); }, {once:true}); });
       showToast(t('reloading'), 800);
-      setTimeout(()=> location.reload(), 200);
+      setTimeout(function(){ location.reload(); }, 200);
       return;
     }
 
-    // No update available
     showToast(t('upToDate'), 1600);
   }
 
-  const btn = document.getElementById('btnCheckUpdates');
+  var btn = document.getElementById('btnCheckUpdates');
   if (btn) {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', function(){
       btn.disabled = true;
-      const prev = btn.textContent;
+      var prev = btn.textContent;
       btn.textContent = t('checking');
-      checkForUpdates().finally(()=>{
+      checkForUpdates().finally(function(){
         btn.disabled = false;
-        setTimeout(()=>{ btn.textContent = prev; }, 1000);
+        setTimeout(function(){ btn.textContent = prev; }, 1000);
       });
     }, {passive:true});
   }
 
-  // Expose API
-  window.MoyaUpdates = { check: checkForUpdates, showToast };
+  // Observe data-lang changes (future toasts will use resolveLang() automatically)
+  try {
+    var mo = new MutationObserver(function(){});
+    mo.observe(document.documentElement, {attributes:true, attributeFilter:['data-lang']});
+  } catch(_){}
+
+  window.MoyaUpdates = { check: checkForUpdates, showToast, resolveLang };
 })();

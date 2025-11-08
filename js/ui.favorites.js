@@ -1,7 +1,9 @@
 /* ==========================================================
  * ui.favorites.js — Экран «Избранное» (как «Мои ошибки»)
- *  - Навигация и разметка 1-в-1 со «Моими ошибками»
- *  - ОК: <4 — предпросмотр; ≥4 — в тренер (home)
+ *  - Визуал/классы и пустое состояние идентичны «Моим ошибкам»
+ *  - ОК: <4 — предпросмотр; ≥4 — тренер (home)
+ *  - Навигация: ставим data-route="favorites"
+ *  - Смена языка: если уже на favorites, просто перемонтируем
  * ========================================================== */
 (function(){
   'use strict';
@@ -25,33 +27,12 @@
       : { title:'Избранное', empty:'В данный момент избранных слов нет', ok:'Ок', preview:'Предпросмотр', count:'Кол-во' };
   }
 
-  /* --------------------------- Навигация --------------------------- */
-  function setRouteFavorites(){
-    // точь-в-точь как у «Ошибок»: пробуем официальный роутер/утилиту, потом fallback
-    try {
-      if (A.Router && typeof A.Router.go === 'function') { A.Router.go('favorites'); return; }
-    } catch(_) {}
-    try {
-      if (A.UI && typeof A.UI.setRoute === 'function') { A.UI.setRoute('favorites'); return; }
-    } catch(_) {}
-    try {
-      document.body.setAttribute('data-route', 'favorites');
-      window.dispatchEvent(new Event('lexitron:route-changed'));
-    } catch(_) {}
-  }
-  function highlightFooterFav(){
-    try{
-      document.querySelectorAll('.app-footer .nav-btn').forEach(b => b.classList.remove('active'));
-      const btn = document.querySelector('.app-footer .nav-btn[data-action="fav"]');
-      if (btn) btn.classList.add('active');
-    }catch(_){}
-  }
-
   /* --------------------------- Утилиты --------------------------- */
   const FLAG = { en:'🇬🇧', de:'🇩🇪', fr:'🇫🇷', es:'🇪🇸', it:'🇮🇹', ru:'🇷🇺', uk:'🇺🇦', pl:'🇵🇱', sr:'🇷🇸' };
   const FAVORITES_KEY_RE = /^favorites:(ru|uk):([a-z]{2}_[a-z]+)$/i;
   function buildFavoritesKey(trainLang, baseDeckKey){ return `favorites:${trainLang}:${baseDeckKey}`; }
 
+  // Собираем агрегат по словарям
   function gatherFavDecks(){
     const tLang = getTrainLang();
     const keys = (A.Decks && A.Decks.builtinKeys && A.Decks.builtinKeys()) || [];
@@ -121,13 +102,12 @@
     const app = document.getElementById('app'); if (!app) return;
     const t = T();
 
-    // выставляем маршрут и активную кнопку — как у «Ошибок»
-    setRouteFavorites();
-    highlightFooterFav();
+    // Навигация: как у «Ошибок» — просто помечаем текущий роут.
+    try { document.body.setAttribute('data-route','favorites'); } catch(_){}
 
     const all = gatherFavDecks();
 
-    // ПУСТОЕ СОСТОЯНИЕ — тот же скелет, что в «Моих ошибках»
+    // ПУСТОЕ СОСТОЯНИЕ — тот же скелет, что у «Моих ошибках»
     if (!all.length){
       app.innerHTML = `
         <div class="home">
@@ -162,7 +142,7 @@
       || (byLang[activeLang] && byLang[activeLang][0]?.key)
       || '';
 
-    // Корпус — те же классы, что у «Моих ошибок»
+    // Корпус — идентично «Моим ошибкам»
     app.innerHTML = `
       <div class="home">
         <section class="card dicts-card">
@@ -260,7 +240,7 @@
     renderFlags();
     renderTable();
 
-    // Кнопка «ОК»: <4 — предпросмотр; ≥4 — в тренер и на home
+    // Кнопка «ОК»: <4 — предпросмотр; ≥4 — тренер (home)
     const ok = document.getElementById('favorites-apply');
     if (ok){
       ok.onclick = ()=>{
@@ -271,6 +251,7 @@
         if (count < 4) { openPreview(key); return; }
         try{ localStorage.setItem('fav.ui.selectedKey', key); }catch(_){}
         try{ A.Trainer && A.Trainer.setDeckKey && A.Trainer.setDeckKey(key); }catch(_){}
+        // возврат на тренер (как у «Ошибок»)
         try{
           if (A.Router && typeof A.Router.go==='function'){ A.Router.go('home'); }
           else { document.body.setAttribute('data-route', 'home'); window.dispatchEvent(new Event('lexitron:route-changed')); }
@@ -282,12 +263,23 @@
   /* --------------------------- Экспорт/хук --------------------------- */
   A.ViewFavorites = { mount };
 
-  // Привязка к кнопке футера
+  // Хук на кнопку футера — только монтируем (без изменения глобальной навигации)
   document.addEventListener('click', (e)=>{
     const el = e.target && e.target.closest && e.target.closest('[data-action="fav"]');
     if (!el) return;
     try{ e.preventDefault(); e.stopPropagation(); }catch(_){}
     try{ A.ViewFavorites && A.ViewFavorites.mount && A.ViewFavorites.mount(); }catch(_){}
   }, { capture:true });
+
+  /* ---------------- Смена языка: мягкий ремоунт ----------------
+     Если уже открыто «Избранное», просто перерисуем текст/таблицу.
+     Никаких роутов тут не трогаем. */
+  document.addEventListener('change', function(e){
+    const t = e && e.target;
+    if (!t || t.id !== 'langToggle') return;
+    if (document.body && document.body.getAttribute('data-route') === 'favorites'){
+      try { A.ViewFavorites && A.ViewFavorites.mount && A.ViewFavorites.mount(); } catch(_){}
+    }
+  }, { passive:true, capture:true });
 
 })();

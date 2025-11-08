@@ -172,6 +172,41 @@
   };
 })();
 
+/* === Favorites shim for UI/Trainer === */
+(function(){
+  var A = window.App || (window.App = {});
+  A.Favorites = A.Favorites || {};
+
+  // .has(dictKey, wordId) → App.isFavorite(...)
+  if (typeof A.Favorites.has !== 'function') {
+    A.Favorites.has = function(dictKey, wordId){
+      try { return !!(A.isFavorite && A.isFavorite(dictKey, wordId)); } catch(_){ return false; }
+    };
+  }
+
+  // .toggle(dictKey, wordId) → App.toggleFavorite(...)
+  if (typeof A.Favorites.toggle !== 'function') {
+    A.Favorites.toggle = function(dictKey, wordId){
+      try { A.toggleFavorite && A.toggleFavorite(dictKey, wordId); } catch(_){}
+    };
+  }
+
+  // Для моста и удаления пачкой (fallback): получить список избранных id по базовому словарю
+  if (typeof A.Favorites.getIds !== 'function') {
+    A.Favorites.getIds = function(trainLang, baseDeckKey){
+      try {
+        var full = (A.Decks && A.Decks.resolveDeckByKey) ? (A.Decks.resolveDeckByKey(baseDeckKey) || []) : [];
+        var out = [];
+        for (var i=0;i<full.length;i++){
+          var w = full[i];
+          if (A.Favorites.has(baseDeckKey, w.id)) out.push(String(w.id));
+        }
+        return out;
+      } catch(_){ return []; }
+    };
+  }
+})();
+
 /* ====================== End of file =======================
  * File: app.favorites.js • Version: 1.0 • 2025-10-19
 */

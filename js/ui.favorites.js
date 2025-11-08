@@ -1,5 +1,8 @@
 /* ==========================================================
- * ui.favorites.js — Экран «Избранное» (в стиле «Мои ошибки»)
+ * ui.favorites.js — Экран «Избранное» (как «Мои ошибки»)
+ *  - Флаги/таблица/предпросмотр/очистка
+ *  - ОК: <4 — предпросмотр; ≥4 — в тренер (home)
+ *  - СТАВИТ data-route="favorites", чтобы язык переключался, не меняя экран
  * ========================================================== */
 (function(){
   'use strict';
@@ -97,6 +100,15 @@
   function mount(){
     const app = document.getElementById('app'); if (!app) return;
     const t = T();
+
+    // Устанавливаем маршрут экрана, как это делает «Мои ошибки»
+    try {
+      document.body.setAttribute('data-route','favorites');
+      // Подсветим кнопку в футере
+      document.querySelectorAll('.app-footer .nav-btn').forEach(b => b.classList.remove('active'));
+      const favBtn = document.querySelector('.app-footer .nav-btn[data-action="fav"]');
+      if (favBtn) favBtn.classList.add('active');
+    } catch(_) {}
 
     const all = gatherFavDecks();
     if (!all.length){
@@ -226,7 +238,7 @@
     renderFlags();
     renderTable();
 
-    // Кнопка «ОК»: если <4 слов — только предпросмотр; если ≥4 — уходим в тренер
+    // Кнопка «ОК»: <4 — предпросмотр; ≥4 — ставим тренер и уходим на home
     const ok = document.getElementById('favorites-apply');
     if (ok){
       ok.onclick = ()=>{
@@ -237,7 +249,6 @@
         if (count < 4) { openPreview(key); return; }
         try{ localStorage.setItem('fav.ui.selectedKey', key); }catch(_){}
         try{ A.Trainer && A.Trainer.setDeckKey && A.Trainer.setDeckKey(key); }catch(_){}
-        // переход на главную (тренер)
         try{
           if (A.Router && typeof A.Router.go==='function'){ A.Router.go('home'); }
           else { document.body.setAttribute('data-route', 'home'); window.dispatchEvent(new Event('lexitron:route-changed')); }
@@ -249,44 +260,12 @@
   /* --------------------------- Экспорт/хук --------------------------- */
   A.ViewFavorites = { mount };
 
-  // Привязка к кнопке футера
+  // Привязка к кнопке футера (без вмешательства в общий роутер)
   document.addEventListener('click', (e)=>{
     const el = e.target && e.target.closest && e.target.closest('[data-action="fav"]');
     if (!el) return;
     try{ e.preventDefault(); e.stopPropagation(); }catch(_){}
     try{ A.ViewFavorites && A.ViewFavorites.mount && A.ViewFavorites.mount(); }catch(_){}
   }, { capture:true });
-
-  /* ===== Удержание «Избранного» при смене языка =====
-     Без маркеров: проверяем реальное наличие элементов этого экрана */
-  (function(){
-    function isFavoritesView(){
-      // есть ли на странице кнопка ОК «Избранного»
-      return !!document.getElementById('favorites-apply');
-    }
-
-    // смена через тумблер в меню
-    document.addEventListener('change', function(e){
-      const t = e && e.target;
-      if (t && t.id === 'langToggle' && isFavoritesView()){
-        try { A.ViewFavorites && A.ViewFavorites.mount && A.ViewFavorites.mount(); } catch(_){}
-      }
-    }, { passive:true, capture:true });
-
-    // резерв: изменение data-lang на <html>
-    try{
-      const mo = new MutationObserver(function(recs){
-        if (!isFavoritesView()) return;
-        for (let i=0;i<recs.length;i++){
-          const r = recs[i];
-          if (r.type === 'attributes' && r.attributeName === 'data-lang'){
-            try { A.ViewFavorites && A.ViewFavorites.mount && A.ViewFavorites.mount(); } catch(_){}
-            break;
-          }
-        }
-      });
-      mo.observe(document.documentElement, { attributes:true, attributeFilter:['data-lang'] });
-    }catch(_){}
-  })();
 
 })();

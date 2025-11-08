@@ -1,11 +1,5 @@
 /* ==========================================================
- * ui.favorites.js — Экран «Избранное» (по образцу «Мои ошибки»)
- *  - Группы по языку базового словаря (флаги)
- *  - Таблица словарей с количеством избранных слов
- *  - 👁️ предпросмотр, 🗑️ очистка словаря
- *  - ОК: если ≥4 → тренировка favorites:<lang>:<baseKey>, иначе — предпросмотр
- *  - Хук на футер [data-action="fav"]
- *  - Фикс: при смене языка интерфейса остаёмся на экране «Избранное»
+ * ui.favorites.js — Экран «Избранное» (в стиле «Мои ошибки»)
  * ========================================================== */
 (function(){
   'use strict';
@@ -16,7 +10,7 @@
     const s = (A.settings && (A.settings.lang || A.settings.uiLang)) || 'ru';
     return (String(s).toLowerCase()==='uk') ? 'uk' : 'ru';
   }
-  function getTrainLang(){ // как у «Моих ошибок»: ru/uk
+  function getTrainLang(){
     try{
       const s = (A.settings && (A.settings.lang || A.settings.uiLang)) || 'ru';
       return (String(s).toLowerCase()==='uk') ? 'uk' : 'ru';
@@ -34,7 +28,7 @@
   const FAVORITES_KEY_RE = /^favorites:(ru|uk):([a-z]{2}_[a-z]+)$/i;
   function buildFavoritesKey(trainLang, baseDeckKey){ return `favorites:${trainLang}:${baseDeckKey}`; }
 
-  // Собираем агрегат по словарям: [{ key, baseKey, trainLang, name, count, baseLang, flag }]
+  // Собираем агрегат по словарям
   function gatherFavDecks(){
     const tLang = getTrainLang();
     const keys = (A.Decks && A.Decks.builtinKeys && A.Decks.builtinKeys()) || [];
@@ -113,11 +107,10 @@
             <div class="card__body"><p style="opacity:.7; margin:0;">${t.empty}</p></div>
           </section>
         </div>`;
-      app.setAttribute('data-current-view','favorites'); // маркер экрана
       return;
     }
 
-    // Группируем по языку базового словаря (как в «Моих ошибках»)
+    // Группируем по языку базового словаря
     const byLang = all.reduce((acc, row)=>{
       const k = row.baseLang || 'xx';
       (acc[k] = acc[k] || []).push(row);
@@ -154,7 +147,6 @@
         </section>
       </div>
     `;
-    app.setAttribute('data-current-view','favorites'); // маркер экрана
 
     // Флаги (табы)
     function renderFlags(){
@@ -219,8 +211,7 @@
             if (has && tog){
               for (const w of deck){ if (has(base, w.id)) tog(base, w.id); }
             }
-            // пересчёт и полная перерисовка
-            mount();
+            mount(); // пересчёт и полная перерисовка
           }
           return;
         }
@@ -235,7 +226,7 @@
     renderFlags();
     renderTable();
 
-    // Кнопка «ОК»: если <4 слов — только предпросмотр
+    // Кнопка «ОК»: если <4 слов — только предпросмотр; если ≥4 — уходим в тренер
     const ok = document.getElementById('favorites-apply');
     if (ok){
       ok.onclick = ()=>{
@@ -246,7 +237,7 @@
         if (count < 4) { openPreview(key); return; }
         try{ localStorage.setItem('fav.ui.selectedKey', key); }catch(_){}
         try{ A.Trainer && A.Trainer.setDeckKey && A.Trainer.setDeckKey(key); }catch(_){}
-        // переход на главную (как в «Ошибках»)
+        // переход на главную (тренер)
         try{
           if (A.Router && typeof A.Router.go==='function'){ A.Router.go('home'); }
           else { document.body.setAttribute('data-route', 'home'); window.dispatchEvent(new Event('lexitron:route-changed')); }
@@ -258,7 +249,7 @@
   /* --------------------------- Экспорт/хук --------------------------- */
   A.ViewFavorites = { mount };
 
-  // Привязываем к кнопке футера без правок других файлов
+  // Привязка к кнопке футера
   document.addEventListener('click', (e)=>{
     const el = e.target && e.target.closest && e.target.closest('[data-action="fav"]');
     if (!el) return;
@@ -266,29 +257,28 @@
     try{ A.ViewFavorites && A.ViewFavorites.mount && A.ViewFavorites.mount(); }catch(_){}
   }, { capture:true });
 
-  /* ===== Фикс удержания экрана при смене языка интерфейса ===== */
+  /* ===== Удержание «Избранного» при смене языка =====
+     Без маркеров: проверяем реальное наличие элементов этого экрана */
   (function(){
-    function isFavoritesMounted(){
-      try{
-        var app = document.getElementById('app');
-        return !!app && app.getAttribute('data-current-view') === 'favorites';
-      }catch(_){ return false; }
+    function isFavoritesView(){
+      // есть ли на странице кнопка ОК «Избранного»
+      return !!document.getElementById('favorites-apply');
     }
 
-    // A) тумблер языка в бургер-меню
+    // смена через тумблер в меню
     document.addEventListener('change', function(e){
-      var t = e && e.target;
-      if (t && t.id === 'langToggle' && isFavoritesMounted()){
+      const t = e && e.target;
+      if (t && t.id === 'langToggle' && isFavoritesView()){
         try { A.ViewFavorites && A.ViewFavorites.mount && A.ViewFavorites.mount(); } catch(_){}
       }
     }, { passive:true, capture:true });
 
-    // B) изменение data-lang на <html>
+    // резерв: изменение data-lang на <html>
     try{
-      var mo = new MutationObserver(function(recs){
-        if (!isFavoritesMounted()) return;
-        for (var i=0;i<recs.length;i++){
-          var r = recs[i];
+      const mo = new MutationObserver(function(recs){
+        if (!isFavoritesView()) return;
+        for (let i=0;i<recs.length;i++){
+          const r = recs[i];
           if (r.type === 'attributes' && r.attributeName === 'data-lang'){
             try { A.ViewFavorites && A.ViewFavorites.mount && A.ViewFavorites.mount(); } catch(_){}
             break;
@@ -297,15 +287,6 @@
       });
       mo.observe(document.documentElement, { attributes:true, attributeFilter:['data-lang'] });
     }catch(_){}
-
-    // C) кастомные события (если проект их генерирует)
-    ['lexitron:ui-lang-changed','app:ui-lang-changed'].forEach(function(ev){
-      document.addEventListener(ev, function(){
-        if (isFavoritesMounted()){
-          try { A.ViewFavorites && A.ViewFavorites.mount && A.ViewFavorites.mount(); } catch(_){}
-        }
-      }, { passive:true });
-    });
   })();
 
 })();

@@ -128,7 +128,8 @@ App.Backup.import = function(){
 
           // Надёжно: перезапустим, чтобы все модули перечитали LS
           
-          // ===== Smooth reload like updates.js =====
+          // 
+          // ===== Smooth reload like updates.js (with Done step) =====
           (function(){
             function resolveLang(){
               var l = (document.documentElement && document.documentElement.dataset && document.documentElement.dataset.lang) || '';
@@ -148,9 +149,9 @@ App.Backup.import = function(){
             }
             function T(lang){
               var D={
-                ru:{restoring:'Восстанавливаю данные…', reloading:'Перезапускаю…', error:'Ошибка импорта данных'},
-                uk:{restoring:'Відновлюю дані…',       reloading:'Перезапускаю…',  error:'Помилка імпорту даних'},
-                en:{restoring:'Restoring data…',        reloading:'Reloading…',    error:'Import error'}
+                ru:{restoring:'Восстанавливаю данные…', done:'Готово', reloading:'Перезапускаю…', error:'Ошибка импорта данных'},
+                uk:{restoring:'Відновлюю дані…',       done:'Готово', reloading:'Перезапускаю…',  error:'Помилка імпорту даних'},
+                en:{restoring:'Restoring data…',        done:'Done',  reloading:'Reloading…',    error:'Import error'}
               }; return D[lang]||D.en;
             }
             var dict = T(resolveLang());
@@ -163,8 +164,21 @@ App.Backup.import = function(){
               }
             }catch(_){}
             try{ sessionStorage.setItem('moya_upgrading','1'); }catch(_){}
-            setTimeout(function(){ location.reload(); }, 200);
+            setTimeout(function(){
+              try{
+                if (window.MoyaUpdates && typeof MoyaUpdates.setToast==='function') MoyaUpdates.setToast(dict.done);
+                else if (window.App && App.UI && typeof App.UI.toast==='function') App.UI.toast(dict.done);
+              }catch(_){}
+              setTimeout(function(){
+                try{
+                  if (window.MoyaUpdates && typeof MoyaUpdates.setToast==='function') MoyaUpdates.setToast(dict.reloading);
+                  else if (window.App && App.UI && typeof App.UI.toast==='function') App.UI.toast(dict.reloading);
+                }catch(_){}
+                setTimeout(function(){ location.reload(); }, 220);
+              }, 600);
+            }, 60);
           })();
+        
 });
       }
       setTimeout(()=>input.remove(), 0);

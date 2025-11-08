@@ -1,8 +1,7 @@
 /* ==========================================================
  * ui.favorites.js — Экран «Избранное» (как «Мои ошибки»)
- *  - Флаги/таблица/предпросмотр/очистка
+ *  - Навигация и разметка 1-в-1 со «Моими ошибками»
  *  - ОК: <4 — предпросмотр; ≥4 — в тренер (home)
- *  - СТАВИТ data-route="favorites", чтобы язык переключался, не меняя экран
  * ========================================================== */
 (function(){
   'use strict';
@@ -26,12 +25,33 @@
       : { title:'Избранное', empty:'В данный момент избранных слов нет', ok:'Ок', preview:'Предпросмотр', count:'Кол-во' };
   }
 
+  /* --------------------------- Навигация --------------------------- */
+  function setRouteFavorites(){
+    // точь-в-точь как у «Ошибок»: пробуем официальный роутер/утилиту, потом fallback
+    try {
+      if (A.Router && typeof A.Router.go === 'function') { A.Router.go('favorites'); return; }
+    } catch(_) {}
+    try {
+      if (A.UI && typeof A.UI.setRoute === 'function') { A.UI.setRoute('favorites'); return; }
+    } catch(_) {}
+    try {
+      document.body.setAttribute('data-route', 'favorites');
+      window.dispatchEvent(new Event('lexitron:route-changed'));
+    } catch(_) {}
+  }
+  function highlightFooterFav(){
+    try{
+      document.querySelectorAll('.app-footer .nav-btn').forEach(b => b.classList.remove('active'));
+      const btn = document.querySelector('.app-footer .nav-btn[data-action="fav"]');
+      if (btn) btn.classList.add('active');
+    }catch(_){}
+  }
+
   /* --------------------------- Утилиты --------------------------- */
   const FLAG = { en:'🇬🇧', de:'🇩🇪', fr:'🇫🇷', es:'🇪🇸', it:'🇮🇹', ru:'🇷🇺', uk:'🇺🇦', pl:'🇵🇱', sr:'🇷🇸' };
   const FAVORITES_KEY_RE = /^favorites:(ru|uk):([a-z]{2}_[a-z]+)$/i;
   function buildFavoritesKey(trainLang, baseDeckKey){ return `favorites:${trainLang}:${baseDeckKey}`; }
 
-  // Собираем агрегат по словарям
   function gatherFavDecks(){
     const tLang = getTrainLang();
     const keys = (A.Decks && A.Decks.builtinKeys && A.Decks.builtinKeys()) || [];
@@ -101,22 +121,24 @@
     const app = document.getElementById('app'); if (!app) return;
     const t = T();
 
-    // Устанавливаем маршрут экрана, как это делает «Мои ошибки»
-    try {
-      document.body.setAttribute('data-route','favorites');
-      // Подсветим кнопку в футере
-      document.querySelectorAll('.app-footer .nav-btn').forEach(b => b.classList.remove('active'));
-      const favBtn = document.querySelector('.app-footer .nav-btn[data-action="fav"]');
-      if (favBtn) favBtn.classList.add('active');
-    } catch(_) {}
+    // выставляем маршрут и активную кнопку — как у «Ошибок»
+    setRouteFavorites();
+    highlightFooterFav();
 
     const all = gatherFavDecks();
+
+    // ПУСТОЕ СОСТОЯНИЕ — тот же скелет, что в «Моих ошибках»
     if (!all.length){
       app.innerHTML = `
         <div class="home">
           <section class="card dicts-card">
-            <div class="card__header"><h2>${t.title}</h2></div>
-            <div class="card__body"><p style="opacity:.7; margin:0;">${t.empty}</p></div>
+            <div class="dicts-header">
+              <h3>${t.title}</h3>
+              <div class="dicts-flags"></div>
+            </div>
+            <div class="dicts-empty">
+              <p class="muted">${t.empty}</p>
+            </div>
           </section>
         </div>`;
       return;
@@ -223,7 +245,7 @@
             if (has && tog){
               for (const w of deck){ if (has(base, w.id)) tog(base, w.id); }
             }
-            mount(); // пересчёт и полная перерисовка
+            mount(); // пересчёт и перерисовка
           }
           return;
         }
@@ -238,7 +260,7 @@
     renderFlags();
     renderTable();
 
-    // Кнопка «ОК»: <4 — предпросмотр; ≥4 — ставим тренер и уходим на home
+    // Кнопка «ОК»: <4 — предпросмотр; ≥4 — в тренер и на home
     const ok = document.getElementById('favorites-apply');
     if (ok){
       ok.onclick = ()=>{
@@ -260,7 +282,7 @@
   /* --------------------------- Экспорт/хук --------------------------- */
   A.ViewFavorites = { mount };
 
-  // Привязка к кнопке футера (без вмешательства в общий роутер)
+  // Привязка к кнопке футера
   document.addEventListener('click', (e)=>{
     const el = e.target && e.target.closest && e.target.closest('[data-action="fav"]');
     if (!el) return;

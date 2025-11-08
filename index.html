@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+    <meta name="color-scheme" content="light dark">
+<title>MOYAMOVA</title>
+
+  <!-- Fonts & CSS -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/theme.light.css">
+  <link rel="stylesheet" href="./css/theme.dark.css">
+  <!-- PWA -->
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" sizes="180x180" href="./img/apple-touch-icon-180x180.png">
+  <link rel="shortcut icon" href="./img/logo_64.png">
+
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-DZL66KME4H"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-DZL66KME4H', { transport_type: 'beacon' });
+  </script>
+
+  <script>
+  (function(){
+    try{
+      var k='ui-theme';
+      var v=localStorage.getItem(k);
+      var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var isDark = (v==='dark') || (v!=='light' && prefersDark);
+      if (isDark) document.documentElement.setAttribute('data-theme','dark');
+    }catch(e){}
+  })();
+  </script>
+
+</head>
+<body>
+  <header class="header">
+    <div class="brand">
+      <a class="brand-link" href="./" aria-label="Главная" aria-label="" data-i18n-aria="ariaHome">
+        <img src="./img/logo_64.png" alt="MOYAMOVA">
+        <h1 class="brand-title">MOYAMOVA</h1>
+      </a>
+    </div>
+    <button id="btnMenu" class="burger" aria-label="Меню" aria-label="" data-i18n-aria="ariaMenu">☰</button>
+  </header>
+
+  <main id="app" class="content"></main>
+
+  <!-- Offcanvas (гамбургер) -->
+  <div class="oc-root" aria-hidden="true">
+    <div class="oc-overlay" data-close="overlay"></div>
+    <aside class="oc-panel" role="menu" aria-label="Меню">
+      <div class="oc-header">
+        <button class="oc-back" aria-label="Назад" data-close="back" aria-label="" data-i18n-aria="ariaBack">←</button>
+        <div class="oc-title">Меню</div>
+        <button class="oc-close" aria-label="Закрыть" data-close="close" aria-label="" data-i18n-aria="ariaClose">✕</button>
+      </div>
+
+      <div class="oc-body">
+        <!-- Пункт 1: Тема -->
+        <div class="menu-item theme-toggle">
+          <div class="menu-label" data-i18n="menuTheme">Тема</div>
+          <div class="theme-switch">
+            <span class="theme-label light" role="img" aria-label="Светлая тема">☀️</span>
+            <label class="switch">
+              <input type="checkbox" id="themeToggle" aria-label="Переключить тему">
+              <span class="slider"></span>
+            </label>
+            <span class="theme-label dark" role="img" aria-label="Тёмная тема">🌙</span>
+          </div>
+        </div>
+
+        <!-- Пункт 2: Язык интерфейса -->
+        <div class="menu-item lang-toggle">
+          <div class="menu-label" data-i18n="menuUiLang">Язык интерфейса</div>
+          <div class="lang-switch">
+            <span class="lang-label left" role="img" aria-label="Русский">🇷🇺</span>
+            <label class="switch">
+              <input type="checkbox" id="langToggle" aria-label="Переключить язык интерфейса">
+              <span class="slider"></span>
+            </label>
+            <span class="lang-label right" role="img" aria-label="Українська">🇺🇦</span>
+          </div>
+        </div>
+
+        <!-- Пункт 3: Режим сложности -->
+        <div class="menu-item level-toggle">
+          <div class="menu-label" data-i18n="menuLevel">Режим сложности</div>
+          <div class="level-switch">
+            <span class="level-label left" role="img" aria-label="Обычный уровень">🐣</span>
+            <label class="switch">
+              <input type="checkbox" id="levelToggle" aria-label="Переключить уровень сложности">
+              <span class="slider"></span>
+            </label>
+            <span class="level-label right" role="img" aria-label="Сложный уровень">🦅</span>
+          </div>
+        </div>
+
+        <!-- Пункт 4: Резервное копирование -->
+        <div class="menu-item backup-tools">
+          <div class="menu-label" data-i18n="menuBackup">Резервное копирование</div>
+          <div class="backup-row">
+            <button type="button" class="backup-btn" data-action="export" data-i18n="btnExport">Экспорт</button>
+            <button type="button" class="backup-btn" data-action="import" data-i18n="btnImport">Импорт</button>
+          </div>
+        </div>
+
+        <!-- Пункт 5: Обновления -->
+        <div class="menu-item updates-check">
+          <div class="menu-label" data-i18n="menuUpdates">Обновления</div>
+          <div class="updates-row">
+            <button class="primary-btn" id="btnCheckUpdates" data-i18n="btnCheckUpdates">Проверить обновления</button>
+          </div>
+        </div>
+
+        <!-- Пункт 6: Версия приложения -->
+        <div class="menu-item app-version" aria-live="polite">
+          <div class="menu-label" data-i18n="menuAppVersion">Версия приложения</div>
+          <div class="app-version-value" id="appVersion">—</div>
+        </div>
+      </div>
+
+      <!-- Нижний ряд быстрых действий -->
+      <div class="actions-row-bottom" role="group" aria-label="Быстрые действия">
+        <button class="action-btn" data-action="guide"   aria-label="Инструкция" aria-label="" data-i18n-aria="ariaGuide">📘</button>
+        <button class="action-btn" data-action="donate"  aria-label="Поддержите проект">💰</button>
+        <button class="action-btn" data-action="contact" aria-label="Связаться">✉️</button>
+        <button class="action-btn" data-action="share"   aria-label="Поделиться">🔗</button>
+        <button class="action-btn" data-action="legal"   aria-label="Юридическая информация">⚖️</button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Footer nav -->
+  <footer class="app-footer" role="navigation" aria-label="Основная навигация">
+    <button class="nav-btn active" data-action="home" aria-label="Главная">
+      <span class="nav-icon" data-icon="home"></span>
+    </button>
+    <button class="nav-btn" data-action="dicts" aria-label="Словари" aria-label="" data-i18n-aria="ariaDicts">
+      <span class="nav-icon" data-icon="book"></span>
+    </button>
+    <button class="nav-btn" data-action="fav" aria-label="Избранное" aria-label="" data-i18n-aria="ariaFav">
+      <span class="nav-icon" data-icon="star"></span>
+    </button>
+    <button class="nav-btn" data-action="mistakes" aria-label="Мои ошибки" aria-label="" data-i18n-aria="ariaMistakes">
+      <span class="nav-icon" data-icon="warning"></span>
+    </button>
+    <button class="nav-btn" data-action="stats" aria-label="Статистика" aria-label="" data-i18n-aria="ariaStats">
+      <span class="nav-icon" data-icon="stats"></span>
+    </button>
+  </footer>
+
+  <!-- Локальная логика страницы -->
+  <script>
+    // Высоты header/footer для offcanvas
+    function updateHFVars(){
+      const h = document.querySelector('.header');
+      const f = document.querySelector('.app-footer');
+      const rs = document.documentElement.style;
+      if (h) rs.setProperty('--header-h-actual', h.getBoundingClientRect().height + 'px');
+      if (f) rs.setProperty('--footer-h-actual', f.getBoundingClientRect().height + 'px');
+    }
+    window.addEventListener('load', updateHFVars);
+    window.addEventListener('resize', updateHFVars);
+
+    const burger  = document.getElementById('btnMenu');
+    const ocRoot  = document.querySelector('.oc-root');
+    const ocPanel = document.querySelector('.oc-panel');
+    const overlay = document.querySelector('.oc-overlay');
+
+    function openMenu(){
+      document.body.classList.add('menu-open');
+      ocRoot.setAttribute('aria-hidden','false');
+      updateHFVars();
+    }
+    function closeMenu(){
+      document.body.classList.remove('menu-open');
+      ocRoot.setAttribute('aria-hidden','true');
+    }
+
+    // Клик по бургеру
+    if (burger){
+      burger.addEventListener('click', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        document.body.classList.contains('menu-open') ? closeMenu() : openMenu();
+      }, { passive:false });
+    }
+
+    // Закрытие меню
+    document.addEventListener('click', (e) => {
+      const t = e.target;
+      const closeAttr = t.getAttribute && t.getAttribute('data-close');
+      if (closeAttr){ e.preventDefault(); closeMenu(); }
+    });
+    if (overlay) overlay.addEventListener('click', closeMenu);
+
+    // Свайп вправо — закрыть
+    (function(){
+      let startX = null;
+      ocPanel.addEventListener('touchstart', (e)=>{ startX = e.touches[0].clientX; }, {passive:true});
+      ocPanel.addEventListener('touchend', (e)=>{
+        if (startX == null) return;
+        const endX = (e.changedTouches[0]||{}).clientX || 0;
+        if (endX - startX > 30) closeMenu();
+        startX = null;
+      });
+    })();
+
+    // Edge-свайп от края — открыть
+    (function(){
+      let startX = null, startedAtEdge = false;
+      const EDGE = 16;
+      document.addEventListener('touchstart', (e)=>{
+        if (document.body.classList.contains('menu-open')) return;
+        startX = e.touches[0].clientX;
+        const vw = window.innerWidth;
+        startedAtEdge = (vw - startX) <= EDGE;
+      }, {passive:true});
+      document.addEventListener('touchend', (e)=>{
+        if (!startedAtEdge) return;
+        const endX = (e.changedTouches[0]||{}).clientX || 0;
+        if (startX - endX > 30) openMenu();
+        startedAtEdge = false; startX = null;
+      });
+    })();
+
+    // Навигация футера — без перезагрузки
+    document.querySelectorAll('.app-footer .nav-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        document.querySelectorAll('.app-footer .nav-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const act = btn.getAttribute('data-action');
+        try {
+          if (act === 'home') {
+            if (window.App && App.Home && typeof App.Home.mount === 'function') {
+              App.Home.mount();
+            } else {
+              // fallback: мягкая перезагрузка
+              location.assign('./');
+            }
+          }
+          // остальные экраны подключим позже
+        } catch(e){ console.warn('nav error', e); }
+      });
+    });
+
+    // 100vh фикс + портретная заглушка
+    (function(){
+      function setVhUnit(){ document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px'); }
+      const mqLandscape = window.matchMedia('(orientation: landscape)');
+      function applyOrientation(){
+        const isLandscape = mqLandscape.matches;
+        document.body.classList.toggle('landscape', isLandscape);
+        const app = document.getElementById('app');
+        if (app) app.setAttribute('aria-hidden', isLandscape ? 'true' : 'false');
+        try { if (window.App && App.applyI18nTitles) { App.applyI18nTitles(document.querySelector('.rotate-lock')); } } catch (_) {}
+      }
+      try { mqLandscape.addEventListener('change', applyOrientation); }
+      catch(_) { mqLandscape.addListener && mqLandscape.addListener(applyOrientation); }
+      window.addEventListener('resize', setVhUnit);
+      window.addEventListener('orientationchange', function(){ setVhUnit(); applyOrientation(); });
+      setVhUnit(); applyOrientation();
+    })();
+
+    // Тема / язык / сложность
+    const themeToggle = document.getElementById('themeToggle');
+    if(themeToggle){ themeToggle.addEventListener('change', e=>{ document.documentElement.dataset.theme = e.target.checked ? 'dark' : 'light'; }); }
+    const langToggle = document.getElementById('langToggle');
+    if(langToggle){ langToggle.addEventListener('change', e=>{ document.documentElement.dataset.lang = e.target.checked ? 'ru' : 'uk'; }); }
+    const levelToggle = document.getElementById('levelToggle');
+    if(levelToggle){ levelToggle.addEventListener('change', e=>{ document.documentElement.dataset.level = e.target.checked ? 'hard' : 'normal'; }); }
+
+    // Проверка обновлений (заглушка)
+    const btnCheckUpdates = document.getElementById('btnCheckUpdates');
+    if(btnCheckUpdates){ btnCheckUpdates.addEventListener('click', ()=>{ alert('Проверка обновлений (заглушка)'); }); }
+
+    // Версия приложения (app.core.js → App.APP_VER)
+    (function(){
+      function renderVersion(){
+        var el = document.getElementById('appVersion');
+        if (!el) return;
+        var v = (window.App && App.APP_VER) || null;
+        if (v) el.textContent = v;
+      }
+      if (!(window.App && App.APP_VER)) {
+        var s = document.createElement('script');
+        s.src = './js/app.core.js';
+        s.onload = renderVersion;
+        s.onerror = function(){};
+        document.head.appendChild(s);
+      } else { renderVersion(); }
+    })();
+
+    // Actions внизу
+    const actionsMap = {
+      guide(){ /* TODO */ },
+      donate(){
+        if (!window.Donate) {
+          const s = document.createElement('script');
+          s.src = './js/donate.js';
+          s.onload = () => window.Donate?.open();
+          document.head.appendChild(s);
+        } else { window.Donate.open(); }
+      },
+      share(){
+        const data = { title: 'MOYAMOVA', url: location.href };
+        if (navigator.share) navigator.share(data).catch(()=>{});
+        else { try { navigator.clipboard.writeText(location.href); alert('Ссылка скопирована'); } catch { prompt('Скопируйте ссылку:', location.href); } }
+      },
+      legal(){ import('./js/legal.js').then(m => m.Legal.open('terms')).catch(console.warn); },
+      contact(){ location.href = 'mailto:support@moyamova.app'; }
+    };
+    document.querySelectorAll('.actions-row-bottom .action-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const act = btn.dataset.action;
+        (actionsMap[act]||function(){})();
+        if (act !== 'guide') { try { closeMenu(); } catch(_){} }
+      });
+    });
+
+    // Service worker
+   if ('serviceWorker' in navigator) {
+     window.addEventListener('load', function() {
+  //    navigator.serviceWorker.register('./sw.js').catch(console.warn);
+      });
+    }
+  </script>
+
+ <!-- === CORE + I18N === -->
+<script src="./js/app.core.js" defer></script>
+<script src="./js/i18n.js" defer></script>
+
+<!-- === РЕЕСТР СЛОВАРЕЙ (ДОЛЖЕН БЫТЬ ДО deck.*.js) === -->
+<script src="./js/dicts.js" defer></script>
+
+<!-- === ДАННЫЕ СЛОВАРЕЙ === -->
+<script src="./js/deck.de.js" defer></script>
+<script src="./js/deck.en.js" defer></script>
+<script src="./js/deck.fr.js" defer></script>
+<script src="./js/deck.sr.js" defer></script>
+
+<!-- === ЛОГИКА (ядро) === -->
+<script src="./js/app.decks.js" defer></script>
+<script src="./js/app.trainer.js" defer></script>
+<script src="./js/app.favorites.js" defer></script>
+<script src="./js/app.mistakes.js" defer></script>
+
+<!-- === Мост виртуальных словарей (ошибки) === -->
+<script src="./js/app.decks.bridge.js" defer></script>
+
+<!-- === UI надстройки (безопасные) === -->
+<script src="./js/ui.bus.js" defer></script>
+<script src="./js/ui.stats.core.js" defer></script>
+<script src="./js/ui.lifecycle.js" defer></script>
+<script src="./js/ui.options.safe.js" defer></script>
+<script src="./js/ui.sets.done.js" defer></script>
+<script src="./js/ui.progress.scope.js" defer></script>
+<script src="./js/ui.state.js" defer></script>
+
+<!-- === Экраны === -->
+<script src="./js/view.dicts.js" defer></script>
+<script src="./js/view.mistakes.js" defer></script>
+
+<!-- === ГЛАВНАЯ === -->
+<script src="./js/app.backup.js" defer></script>
+<script src="./js/home.js" defer></script>
+
+<script src="./js/ui.swipe.js"></script>
+
+<!-- === МОДУЛИ (если нужно) === -->
+<script type="module" src="./js/legal.js"></script>
+  
+  <!-- Заглушка для альбомной ориентации -->
+  <div class="rotate-lock" role="dialog" aria-modal="true" aria-live="polite">
+    <div class="rotate-card">
+      <div class="rotate-emoji" aria-hidden="true">📱</div>
+      <div class="rotate-title" data-title-key="rotateToPortraitTitle" data-title-fallback="Поверните устройство">
+        Поверните устройство
+      </div>
+      <div class="rotate-text" data-title-key="rotateToPortraitText" data-title-fallback="Доступен только портретный режим. Пожалуйста, используйте приложение вертикально.">
+        Доступен только портретный режим. Пожалуйста, используйте приложение вертикально.
+      </div>
+    </div>
+  </div>
+  <script src="./js/theme.js" defer></script>
+</body>
+</html>

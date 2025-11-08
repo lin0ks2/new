@@ -1,9 +1,9 @@
 /* ==========================================================
- * ui.favorites.js — Экран «Избранное» (визуал = view.mistakes.js)
- *  - Пустое: <section class="card"> + card__header/card__body
- *  - Непустое: <section class="card dicts-card"> + dicts-header/flags/table/actions
- *  - ОК: <4 — предпросмотр; ≥4 — запуск тренера и возврат на home
- *  - Без вмешательства в роутер/язык
+ * ui.favorites.js — Избранное (верстка = view.mistakes.js)
+ *  - Пусто: <section class="card"><h3>...</h3><p>...</p></section>
+ *  - Непусто: <section class="card dicts-card"> + dicts-header/flags/table/actions
+ *  - ОК: <4 — предпросмотр; ≥4 — тренер (home)
+ *  - Без изменения роутера и без слушателей языка
  * ========================================================== */
 (function(){
   'use strict';
@@ -99,15 +99,13 @@
     const t = T();
     const all = gatherFavDecks();
 
-    // === ПУСТОЕ СОСТОЯНИЕ — ТОЧНО КАК В view.mistakes.js ===
+    // === ПУСТО — в точности как в view.mistakes.js ===
     if (!all.length){
       app.innerHTML = `
         <div class="home">
           <section class="card">
-            <div class="card__header"><h2>${t.title}</h2></div>
-            <div class="card__body">
-              <p style="opacity:.7; margin:0;">${t.empty}</p>
-            </div>
+            <h3>${t.title}</h3>
+            <p>${t.empty}</p>
           </section>
         </div>`;
       return;
@@ -127,7 +125,7 @@
     let selectedKey = (typeof localStorage!=='undefined' && localStorage.getItem('fav.ui.selectedKey'))
       || (byLang[activeLang] && byLang[activeLang][0]?.key) || '';
 
-    // === НЕПУСТО — КАРКАС 1:1 КАК В view.mistakes.js ===
+    // === НЕПУСТО — в точности как в view.mistakes.js ===
     app.innerHTML = `
       <div class="home">
         <section class="card dicts-card">
@@ -173,7 +171,7 @@
       const tbody = app.querySelector('.dicts-table tbody');
       if (!tbody) return;
 
-      const rows = data.map((r, idx)=>`
+      const rows = data.map((r)=>`
         <tr class="dict-row${r.key===selectedKey?' is-selected':''}" data-key="${r.key}" data-count="${r.count|0}">
           <td class="t-center" style="width:64px">${r.flag}</td>
           <td>${r.name}</td>
@@ -218,7 +216,7 @@
     renderFlags();
     renderTable();
 
-    // ОК
+    // ОК: <4 — предпросмотр; ≥4 — тренер (home)
     const ok = document.getElementById('favorites-apply');
     if (ok){
       ok.onclick = ()=>{

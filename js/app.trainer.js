@@ -6,7 +6,7 @@
  * Update: если весь словарь выучен — разрешаем тренировку на выученных словах
  * ========================================================== */
 
-const TRAINER_DEFAULT_LEARNED_REPEAT = 'never';
+const TRAINER_DEFAULT_LEARNED_REPEAT = 'ultra';
 
 (function(){
   const App = window.App || (window.App = {});

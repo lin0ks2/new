@@ -1,89 +1,73 @@
 {
   "name": "MOYAMOVA",
   "short_name": "MOYAMOVA",
+  "id": "/",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#1fb6ff",
+  "categories": [
+    "education"
+  ],
   "icons": [
     {
-      "src": "./img/favicon-16x16.png",
-      "sizes": "16x16",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./img/favicon-128x128.png",
-      "sizes": "128x128",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./img/apple-touch-icon-120x120.png",
-      "sizes": "120x120",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
       "src": "./img/android-chrome-192x192.png",
+      "type": "image/png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./img/apple-touch-icon-152x152.png",
-      "sizes": "152x152",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./img/favicon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./img/apple-touch-icon-180x180.png",
-      "sizes": "180x180",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./img/favicon-48x48.png",
-      "sizes": "48x48",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./img/apple-touch-icon-76x76.png",
-      "sizes": "76x76",
-      "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
       "src": "./img/android-chrome-512x512.png",
+      "type": "image/png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
-      "src": "./img/favicon-256x256.png",
-      "sizes": "256x256",
+      "src": "./img/apple-touch-icon-120x120.png",
       "type": "image/png",
-      "purpose": "any"
+      "sizes": "120x120"
     },
     {
-      "src": "./img/favicon-192x192.png",
-      "sizes": "192x192",
+      "src": "./img/apple-touch-icon-152x152.png",
       "type": "image/png",
-      "purpose": "any"
+      "sizes": "152x152"
     },
     {
-      "src": "./img/favicon-32x32.png",
-      "sizes": "32x32",
+      "src": "./img/apple-touch-icon-180x180.png",
       "type": "image/png",
-      "purpose": "any"
+      "sizes": "180x180"
+    },
+    {
+      "src": "./img/apple-touch-icon-76x76.png",
+      "type": "image/png",
+      "sizes": "76x76"
+    },
+    {
+      "src": "./img/favicon.ico",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "./img/logo_128.png",
+      "type": "image/png",
+      "sizes": "128x128"
+    },
+    {
+      "src": "./img/logo_32.png",
+      "type": "image/png",
+      "sizes": "32x32"
+    },
+    {
+      "src": "./img/logo_512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./img/logo_64.png",
+      "type": "image/png",
+      "sizes": "64x64"
     }
   ]
 }

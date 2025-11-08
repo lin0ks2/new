@@ -45,6 +45,26 @@
 
   <meta name="apple-mobile-web-app-title" content="MOYAMOVA">
   <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "MOYAMOVA", "applicationCategory": "EducationalApplication", "operatingSystem": "Web", "isAccessibleForFree": true, "offers": {"@type": "Offer", "price": "0", "priceCurrency": "CHF"}, "url": "https://moyamova.online/", "inLanguage": ["ru", "uk", "de", "en", "fr", "sr"], "description": "Изучайте языки с карточками слов: работает офлайн без интернета, без рекламы и подписок. Немецкий, английский, французский, сербский. Прогресс, статистика, экспорт.", "publisher": {"@type": "Organization", "name": "MOYAMOVA"}}</script>
+
+  <!-- Smooth reload helper: prevents white flash during SW upgrade -->
+  <script>
+  (function(){
+    try {
+      if (sessionStorage.getItem('moya_upgrading')==='1') {
+        var dark = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+        var bg = dark ? '#0c1016' : '#ffffff';
+        var st = document.createElement('style');
+        st.textContent = 'body{background:'+bg+'} body{opacity:0;transition:opacity .18s ease}';
+        document.head.appendChild(st);
+        window.addEventListener('load', function(){
+          sessionStorage.removeItem('moya_upgrading');
+          requestAnimationFrame(function(){ document.body.style.opacity='1'; });
+        });
+      }
+    } catch(e){}
+  })();
+  </script>
+
 </head>
 <body>
 

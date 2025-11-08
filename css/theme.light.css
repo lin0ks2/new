@@ -1,0 +1,1025 @@
+/* ======================================================================================
+   theme.light.css — Consolidated light theme (tokens + dicts + home)
+   This file REPLACES css/tokens.css, css/dicts.css, css/home.css
+   Keep theme.dark.css loaded after this file for dark overrides via [data-theme="dark"].
+   ====================================================================================== */
+
+/* ===== Tokens (brand, surfaces, layout) — light ===== */
+/* ========================================================================== */
+/*  TOKENS.CSS — ЧИСТАЯ СБОРКА С КОММЕНТАРИЯМИ                                */
+/*  Браузерные правила оставлены как есть (идеальны).                          */
+/*  PWA отделён в свою ветку и не дублирует safe-area снизу.                   */
+/* ========================================================================== */
+
+/* =========================
+   БАЗОВЫЕ ПЕРЕМЕННЫЕ (CSS)
+   ========================= */
+:root{
+  --brand-color: var(--brand);
+
+  --text-secondary: var(--text-muted);
+
+  --border-color: var(--divider, var(--border));
+
+  --bg-elevated: var(--surface-2);
+
+  --text-main: var(--text);
+
+  --bg-main: var(--bg);
+
+  --shadow-2: 0 8px 24px rgba(0,0,0,.06);
+
+  --shadow-1: 0 2px 8px rgba(0,0,0,.03);
+
+  --radius-pill: 999px;
+
+  --radius-round: 34px;
+
+  --radius-xl: 16px;
+
+  --radius-lg: 14px;
+
+  --radius-md: 10px;
+
+  --radius-sm: 8px;
+
+  --radius-xs: 4px;
+
+  color-scheme: light;
+  --focus-ring: color-mix(in srgb, var(--brand, #35b6ff) 45%, transparent);
+
+  --brand:#1fb6ff;                 /* основной брендовый цвет (иконки/акценты) */
+  --brand-dark:#0ea5e9;            /* более тёмный оттенок бренда */
+  --burger:var(--brand);           /* цвет кнопки «три линии» по умолчанию */
+
+  --header-pad-x:14px;             /* горизонтальные отступы шапки */
+  --header-pad-bottom:8px;         /* нижний отступ внутри шапки */
+
+  --safe-top:env(safe-area-inset-top,0px);     /* безопасная зона сверху (iOS вырез) */
+  --safe-bottom:env(safe-area-inset-bottom,0px);/* безопасная зона снизу (iOS home-бар) */
+
+  --title-size:26px;               /* размер названия в шапке */
+  --logo-size:44px;                /* размер логотипа в шапке */
+  --gap-tight:8px;                 /* компактный межэлементный зазор */
+
+  --footer-h:60px;                 /* базовая высота футера без safe-area */
+  --footer-sep:#e5e7eb;            /* цвет разделительных линий */
+  --footer-bg:#fff;                /* фон футера */
+  --footer-fg:#333;                /* цвет иконок/текста футера */
+  --nav-gap:12px;                  /* зазоры между кнопками в футере */
+  --nav-icon-size:28px;            /* базовый размер иконок футера */
+
+  --header-h-actual:64px;          /* фактическая высота шапки (перезаписывается JS) */
+  --footer-h-actual:calc(var(--footer-h) + var(--safe-bottom)); /* фактическая высота футера (перезапишет JS) */}
+/* чуть больше размеры на более широких экранах */
+@media (min-width:480px){
+  :root{ --title-size:28px; --logo-size:48px; --nav-icon-size:30px;}}
+/* =========================
+   СБРОСЫ/ОСНОВЫ
+   ========================= */
+html,body{ margin:0; padding:0;}
+/* убираем внешние отступы документа */
+*{ -webkit-tap-highlight-color:transparent;}
+/* убираем серую вспышку при тапе на iOS */
+body{
+  font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif; /* системный шрифт */
+  background:#fff;                                      /* белый фон по умолчанию */
+  color:#111;                                           /* базовый текстовый цвет */}
+body.menu-open{ overflow:hidden; touch-action:none;}
+/* при открытом меню — не скроллим под ним */
+
+/* =========================
+   ШАПКА (HEADER)
+   ========================= */
+.header{
+  position:sticky; top:0; z-index:1000;                /* шапка прилипает к верху и перекрывает контент */
+  display:flex; align-items:center; justify-content:space-between; /* выравнивание логотип/название/бургер */
+  padding:0 var(--header-pad-x);                        /* горизонтальные поля шапки */
+  padding-top:max(var(--safe-top),8px);                 /* учитываем safe-area сверху на iOS */
+  padding-bottom:var(--header-pad-bottom);              /* нижний внутренний отступ */
+  background:#fff;                                      /* фон шапки */
+  border-bottom:1px solid #dfe3e8;                      /* нижняя разделительная линия шапки */}
+.brand{ display:flex; align-items:center;}
+/* блок логотип+название */
+.brand-link{ display:flex; align-items:center; gap:var(--gap-tight); color:inherit; text-decoration:none;}
+/* ссылка-домой */
+.brand img{ width:var(--logo-size); height:var(--logo-size);}
+/* размеры логотипа */
+.brand-title{
+  font-family:'Montserrat',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif; /* шрифт названия */
+  font-weight:700; font-size:var(--title-size); line-height:1.05; margin:0;            /* жирность/размер/лид/сброс внешних */}
+/* кнопка «три линии» */
+.burger{
+  font-size:32px; line-height:1; color:var(--burger);  /* размер и базовый цвет бургера */
+  background:none; border:0; cursor:pointer;           /* убираем фон/бордеры, курсор — рука */
+  -webkit-appearance:none; appearance:none; outline:none; /* нативные артефакты и фокус-рамки убраны (потом добавим кастомные) */
+  transition:transform .1s ease, color .12s ease;      /* лёгкая анимация на нажатие/цвет */}
+body.menu-open .burger{ color:var(--footer-fg); transform:scale(1.06);}
+/* при открытом меню — чуть темнее и крупнее */
+.burger:active{ transform:scale(1.08);}
+/* микро-скейл при активном тапе */
+
+/* =========================
+   КОНТЕНТ
+   ========================= */
+.content{
+  padding:16px;                                         /* внутренние поля контента */
+  padding-bottom:calc(var(--footer-h) + var(--safe-bottom) + 12px); /* запас снизу, чтобы контент не уходил под футер */}
+/* =========================
+   ФУТЕР (НАВИГАЦИЯ)
+   ========================= */
+.app-footer{
+  position:fixed; left:0; right:0; bottom:0;           /* футер всегда прибит к низу окна */
+  height:calc(var(--footer-h) + var(--safe-bottom));   /* базовая высота + safe-area (перезапишет JS фактом) */
+  display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); /* пять равных колонок (5 кнопок) */
+  column-gap:var(--nav-gap);                            /* горизонтальный зазор между кнопками */
+  padding-left:var(--nav-gap); padding-right:var(--nav-gap); /* поля слева/справа внутри футера */
+  background:var(--footer-bg); color:var(--footer-fg); /* фон и цвет иконок/текста */
+  border-top:1px solid #e5e7eb;                        /* линия сверху футера */
+  border-bottom:1px solid #e5e7eb;                     /* линия снизу футера (в PWA мы её отключим) */
+  z-index:1000;                                        /* над контентом */
+  padding-bottom:var(--safe-bottom);                   /* отступ под home-бар (в PWA уберём) */
+  box-shadow:none;                                     /* тени убраны для чистых стыков */}
+/* кнопка навигации в футере */
+.app-footer .nav-btn{
+  display:flex; align-items:center; justify-content:center; /* центрирование иконок в каждой кнопке */
+  margin:0; padding:8px 4px 10px;                           /* внутренние отступы кнопки */
+  background:transparent; border:0; color:inherit; font:inherit; /* кнопка «плоская», наследует шрифт/цвет */
+  cursor:pointer; width:100%;                               /* кликабельна вся колонка */
+  -webkit-appearance:none; appearance:none; outline:none;   /* нативный вид и фокус-рамка отключены (сделаем позже) */}
+/* иконка навигации */
+.nav-icon{
+  width:var(--nav-icon-size); height:var(--nav-icon-size); /* размеры иконок */
+  display:block; background-repeat:no-repeat; background-position:center; background-size:contain; /* рисуем svg как фон */
+  pointer-events:none; user-select:none; -webkit-user-select:none; /* иконки не интерактивны, выделение отключено */
+  transition:transform .12s ease, opacity .15s ease;       /* лёгкая анимация при hover/active */}
+/* =========================
+   ИКОНКИ (картинки из /img)
+   ========================= */
+/* обычные (неактивные) */
+.nav-btn [data-icon="home"]   { background-image:url("../img/home.svg");}
+/* иконка Главная */
+.nav-btn [data-icon="book"]   { background-image:url("../img/book.svg");}
+/* иконка Словари */
+.nav-btn [data-icon="star"]   { background-image:url("../img/star.svg");}
+/* иконка Избранное */
+.nav-btn [data-icon="warning"]   { background-image:url("../img/warning.svg");}
+/* иконка Мои ошибки */
+.nav-btn [data-icon="stats"]   { background-image:url("../img/stats.svg");}
+/* иконка Статистика */
+
+/* hover-состояние (десктопы/мышь) */
+@media (hover:hover){
+  .nav-btn:hover [data-icon="home"]   { background-image:url("../img/home_hover.svg");}
+/* hover Главная */
+  .nav-btn:hover [data-icon="book"]   { background-image:url("../img/book_hover.svg");}
+/* hover Словари */
+  .nav-btn:hover [data-icon="star"]   { background-image:url("../img/star_hover.svg");}
+/* hover Избранное */
+  .nav-btn:hover [data-icon="warning"]{ background-image:url("../img/warning_hover.svg");}
+/* hover Мои ошибки */
+  .nav-btn:hover [data-icon="stats"]  { background-image:url("../img/stats_hover.svg");}
+/* hover Статистика */
+  .nav-btn:hover .nav-icon{ transform:translateY(-1px);}
+/* лёгкий сдвиг вверх при hover */}
+/* активная кнопка (выбранная вкладка) */
+.nav-btn.active .nav-icon{ transform:scale(1.06);}
+/* небольшое увеличение активной */
+.nav-btn.active [data-icon="home"]   { background-image:url("../img/home_active.svg");}
+/* активная Главная */
+.nav-btn.active [data-icon="book"]   { background-image:url("../img/book_active.svg");}
+/* активные Словари */
+.nav-btn.active [data-icon="star"]   { background-image:url("../img/star_active.svg");}
+/* активное Избранное */
+.nav-btn.active [data-icon="warning"]   { background-image:url("../img/warning_active.svg");}
+/* активные Ошибки */
+.nav-btn.active [data-icon="stats"]   { background-image:url("../img/stats_active.svg");}
+/* активная Статистика */
+.nav-btn:active .nav-icon{ transform:scale(1.08);}
+/* отклик при таче */
+
+/* =========================
+   OFF-CANVAS (гамбургер)
+   ========================= */
+/* корневой слой меню: не перехватывает клики (чтобы шапка/футер работали) */
+.oc-root{ position:fixed; inset:0; z-index:1100; pointer-events:none;}
+/* клики сквозь корень */
+
+/* ВАЖНО: overlay/panel кликабельны ТОЛЬКО когда меню открыто */
+.oc-overlay, .oc-panel{ pointer-events:none;}
+body.menu-open .oc-overlay,
+body.menu-open .oc-panel{ pointer-events:auto;}
+/* полупрозрачный оверлей между шапкой и футером */
+.oc-overlay{
+  position:fixed; left:0; right:0;                        /* растягиваем по ширине */
+  top:var(--header-h-actual);                             /* от нижней границы шапки (измеряется JS) */
+  bottom:calc(var(--footer-h-actual) + 0px);              /* до верхней границы футера (измеряется JS), +0px для ровного стыка */
+  background:rgba(0,0,0,.18);                             /* затемнение фона */
+  opacity:0; transition:opacity .18s ease;                /* плавное появление/исчезновение */}
+body.menu-open .oc-overlay{ opacity:1;}
+/* показываем при открытом меню */
+
+/* сама панель — «выезжает» справа и ездит по «рельсам» между шапкой и футером */
+.oc-panel{
+  position:fixed; right:0;                                /* панель прижата к правому краю */
+  top:var(--header-h-actual);                             /* верх = низ шапки */
+  bottom:calc(var(--footer-h-actual) + 0px);              /* низ = верх футера (ровный стык) */
+  width:50vw; max-width:520px; min-width:280px;           /* ширина панели (адаптивные пределы) */
+  background:#fff; border:0; box-shadow:none;             /* без бордеров и теней (чтобы не было «двойных линий») */
+  transform:translateX(100%); transition:transform .22s ease; /* скрыта за правым краем, с анимацией выезда */
+  display:flex; flex-direction:column;                    /* вертикальная компоновка внутри */}
+body.menu-open .oc-panel{ transform:translateX(0);}
+/* выезжает при открытом меню */
+
+/* шапка внутри панели (стрелка ←, заголовок «Меню», крестик ✕) */
+.oc-header{
+  display:flex; align-items:center; justify-content:space-between; /* стрелка слева, крестик справа, заголовок по центру */
+  padding:4px 8px; border-bottom:1px solid #e5e7eb;              /* внутренние отступы и нижняя линия */}
+.oc-title{ font-weight:700; text-align:center; flex:1;}
+/* заголовок занимает центр */
+.oc-back,.oc-close{
+  background:transparent; border:0; font-size:20px; cursor:pointer; color:#333; /* кнопки без рамок, приятный размер */
+  -webkit-appearance:none; appearance:none; outline:none;                         /* чистый вид */}
+.oc-back{ margin-right:8px;} .oc-close{ margin-left:8px;}
+/* небольшие отступы по сторонам */
+.oc-body{ overflow:auto; padding:12px; -webkit-overflow-scrolling:touch;}
+/* прокрутка содержимого меню, инерция iOS */
+
+/* ========================================================================== */
+/*  ВЕТКИ ОКРУЖЕНИЙ                                                           */
+/*  1) Мобильные БРАУЗЕРЫ (Chrome/Safari): ничего не трогаем — как есть.      */
+/*  2) PWA (установленное приложение): убираем дубли safe-area снизу.         */
+/* ========================================================================== */
+
+/* 1) МОБИЛЬНЫЕ БРАУЗЕРЫ (Chrome / Safari) — ОСТАВЛЕНО БЕЗ ИЗМЕНЕНИЙ */
+@media all and (display-mode:browser){
+  .app-footer{ bottom:0px;}
+/* футер на нуле — твоё идеальное текущее поведение в браузерах */}
+/* 2) PWA (display-mode: standalone) — прижимаем кнопки НА САМЫЙ НИЗ, без дублей safe-area */
+@media all and (display-mode:standalone){
+  .app-footer{
+    bottom:0;                    /* футер ровно у нижней кромки окна */
+    height:var(--footer-h);      /* высота БЕЗ safe-area (раньше здесь была сумма, получался двойной учёт) */
+    padding-bottom:0;            /* убрали нижний внутренний отступ (safe-area) — не нужен для полной «прилипки» */
+    border-bottom:0;             /* нижняя линия футера в PWA не нужна (часто визуально мешает у самого края) */}}
+/* ========================================================================== */
+/*  ДОП. НАСТРОЙКИ ДЛЯ iOS (SAFE-AREAS)                                       */
+/*  ВАЖНО: разбиваем на две ветки, чтобы НЕ дублировать safe-area в PWA.      */
+/* ========================================================================== */
+
+/* iOS + БРАУЗЕРЫ (Safari в браузерном режиме) — можно учитывать safe-area, если нужно */
+@supports (-webkit-touch-callout:none){
+  @media all and (display-mode:browser){
+    .header{ padding-top:max(var(--safe-top),8px);}
+/* шапка уважает вырез сверху в браузере */
+    .app-footer{
+      height:calc(var(--footer-h) + var(--safe-bottom));         /* высота футера с учётом home-бара в браузере */
+      padding-bottom:var(--safe-bottom);                         /* добавляем отступ для кнопок над home-баром в браузере */}}}
+/* iOS + PWA — тут НИЧЕГО НЕ ДОБАВЛЯЕМ, чтобы не возвращать «двойное» safe-bottom
+   Кнопки должны быть у самого низа → оставляем поведение из ветки PWA выше. */
+
+/* =========================
+   БУРГЕР → ПУНКТ "ТЕМА" (ТОГЛ)
+   ========================= */
+.menu-item.theme-toggle{
+  padding:14px 12px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;}
+.menu-label{
+  font-weight:600;
+  font-size:15px;
+  color:#333;}
+
+.theme-switch{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;}
+.theme-label{
+  font-size:14px;
+  color:#666;}
+.switch{
+  position:relative;
+  display:inline-block;
+  width:48px;
+  height:28px;}
+.switch input{
+  opacity:0;
+  width:0;
+  height:0;}
+.slider{
+  position:absolute;
+  cursor:pointer;
+  top:0; left:0; right:0; bottom:0;
+  background-color:#ccc;
+  border-radius: var(--radius-round);
+  transition:background-color .25s;}
+.slider:before{
+  position:absolute;
+  content:"";
+  height:22px; width:22px;
+  left:3px; bottom:3px;
+  background-color:white;
+  border-radius:50%;
+  transition:transform .25s;}
+input:checked + .slider{
+  background-color:var(--burger); /* брендовый цвет при включении */}
+input:checked + .slider:before{
+  transform:translateX(20px);}
+/* =========================
+   БУРГЕР → ПУНКТ "ЯЗЫК ИНТЕРФЕЙСА"
+   ========================= */
+.menu-item.lang-toggle{
+  padding:14px 12px;                  /* те же отступы, что у темы */
+  display:flex; flex-direction:column;
+  gap:8px;}
+.lang-switch{
+  display:flex; align-items:center; justify-content:center; /* флаги по бокам, тогл строго по центру */
+  gap:10px;}
+.lang-label{
+  font-size:20px;                     /* размер флага */
+  line-height:1;                      /* ровно по центру тогла */}
+.lang-label.left{ margin-right:4px;}
+.lang-label.right{ margin-left:4px;}
+/* используем те же стили тогла, чтобы всё было идеально по одной вертикали */
+.lang-switch .switch{
+  position:relative; display:inline-block;
+  width:48px; height:28px;            /* идентично тоглу темы */}
+.lang-switch .switch input{
+  opacity:0; width:0; height:0;}
+.lang-switch .slider{
+  position:absolute; inset:0;
+  cursor:pointer;
+  background-color:#ccc;
+  border-radius: var(--radius-round);
+  transition:background-color .25s;}
+.lang-switch .slider:before{
+  content:""; position:absolute;
+  height:22px; width:22px;
+  left:3px; bottom:3px;
+  background-color:white;
+  border-radius:50%;
+  transition:transform .25s;}
+.lang-switch input:checked + .slider{
+  background-color:var(--burger);     /* при переключении — брендовый цвет */}
+.lang-switch input:checked + .slider:before{
+  transform:translateX(20px);}
+/* =========================
+   БУРГЕР → ПУНКТ "РЕЖИМ СЛОЖНОСТИ"
+   ========================= */
+.menu-item.level-toggle{
+  padding:14px 12px;
+  display:flex; flex-direction:column;
+  gap:8px;}
+.level-switch{
+  display:flex; align-items:center; justify-content:center;
+  gap:10px;}
+.level-label{
+  font-size:20px; line-height:1;
+  display:flex; align-items:center; justify-content:center;}
+.level-label.left{ margin-right:4px;}
+.level-label.right{ margin-left:4px;}
+
+.level-switch .switch{
+  position:relative; display:inline-block;
+  width:48px; height:28px;}
+.level-switch .switch input{ opacity:0; width:0; height:0;}
+.level-switch .slider{
+  position:absolute; inset:0; cursor:pointer;
+  background-color:#ccc;
+  border-radius: var(--radius-round);
+  transition:background-color .25s;}
+.level-switch .slider:before{
+  content:""; position:absolute;
+  height:22px; width:22px;
+  left:3px; bottom:3px;
+  background-color:white;
+  border-radius:50%;
+  transition:transform .25s;}
+.level-switch input:checked + .slider{
+  background-color:var(--burger);}
+.level-switch input:checked + .slider:before{
+  transform:translateX(20px);}
+/* =========================
+   БУРГЕР → РЕЗЕРВНОЕ КОПИРОВАНИЕ
+   ========================= */
+.menu-item.backup-tools {
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;}
+
+.backup-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;}
+
+.backup-btn {
+  flex: 1;
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: background-color 0.2s ease, transform 0.15s ease;}
+
+.backup-btn:hover {
+  background: var(--brand-dark);}
+
+.backup-btn:active {
+  transform: scale(0.96);}
+/* отступ-«прокладка» между секциями меню */
+.menu-spacer{ height:48px;}
+/* общий стиль «основной кнопки» в меню (как у бэкапа, но центрируется) */
+.primary-btn{
+  background: var(--brand);
+  color:#fff;
+  border:none;
+  border-radius: var(--radius-md);
+  font-size:14px;     /* чтобы влезала в бургер с полями */
+  font-weight:600;
+  padding:10px 16px;
+  cursor:pointer;
+  -webkit-appearance:none; appearance:none;}
+.primary-btn:hover{ background:var(--brand-dark);}
+/* «Обновления» */
+.menu-item.updates-check{
+  padding:14px 12px;
+  display:flex; flex-direction:column; gap:10px;}
+.updates-row{
+  display:flex; justify-content:center;}
+.updates-row .primary-btn{
+  width:100%;
+  max-width:320px;     /* центрированная и не «расползается» шире */}
+/* =========================
+   БУРГЕР → НИЖНИЕ 5 КНОПОК (БЕЗ ПОДЛОЖЕК/НАДПИСИ)
+   ========================= */
+.actions-row-bottom{
+  position:absolute; bottom:0; left:0; right:0;      /* прижаты к самому низу панели */
+  display:grid; grid-template-columns:repeat(5,1fr); /* 5 равных колонок */
+  background:#fff; border-top:1px solid #e5e7eb;     /* тонкая верхняя линия ряда */
+  z-index:5;}
+.action-btn{
+  display:flex; align-items:center; justify-content:center;
+  height:60px; font-size:24px;                        /* крупная тач-зона, только эмодзи */
+  background:transparent; border:0; cursor:pointer;
+  -webkit-appearance:none; appearance:none; outline:none;
+  transition:transform .1s ease, color .12s ease;}
+.action-btn:not(:last-child){ border-right:1px solid #eef1f4;}
+/* вертикальные разделители */
+@media (hover:hover){
+  .action-btn:hover{ color:var(--burger);}}
+.action-btn:active{ transform:scale(1.08); color:var(--burger);}
+/* чтобы содержимое меню не заезжало под нижний ряд */
+.oc-body{ padding-bottom:80px;}
+/* =========================
+   ОРИЕНТАЦИЯ: ЗАГЛУШКА ДЛЯ LANDSCAPE
+   ========================= */
+.orientation-guard{
+  position:fixed; inset:0; z-index:1500;        /* поверх всего (выше legal/donate) */
+  display:none; align-items:center; justify-content:center;
+  padding:calc(16px + var(--safe-top)) 16px calc(16px + var(--safe-bottom));
+  background:#fff;
+  text-align:center; color:#111; 
+  font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;}
+.orientation-guard .og-inner{
+  max-width:520px;
+  border:1px solid #eef1f4; border-radius: var(--radius-lg); background:#fff;
+  padding:16px 14px;
+  box-shadow:none;}
+.orientation-guard .og-emoji{ font-size:28px; line-height:1; margin-bottom:8px;}
+.orientation-guard .og-title{ font-weight:700; font-size:18px; margin:0 0 6px;}
+.orientation-guard .og-text{ margin:0; font-size:14px; color:#374151; line-height:1.5;}
+/* показываем заглушку и блокируем фон в альбомной ориентации */
+@media (orientation:landscape){
+  .orientation-guard{ display:flex;}
+  body.landscape-block{ overflow:hidden; touch-action:none;}}
+.page-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-main);
+  color: var(--text-main);}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-elevated);}
+
+.page-title {
+  font-size: 1.2rem;
+  font-weight: 600;}
+
+.page-back {
+  font-size: 1.5rem;
+  margin-right: 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);}
+
+.page-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;}
+
+.page-footer {
+  border-top: 1px solid var(--border-color);
+  padding: 0.75rem;
+  display: flex;
+  justify-content: center;
+  background: var(--bg-elevated);}
+
+.page-close {
+  background: var(--brand-color);
+  color: #fff;
+  border: none;
+  border-radius: 0.6rem;
+  font-weight: 600;
+  padding: 0.6rem 1.4rem;
+  cursor: pointer;
+  transition: opacity 0.2s ease;}
+.page-close:hover {
+  opacity: 0.8;}
+/* LEGAL NAV */
+.legal-nav {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  flex-wrap: wrap;}
+
+.legal-nav.top {
+  border-bottom: 1px solid var(--border-color);}
+
+.legal-nav.bottom {
+  border-top: 1px solid var(--border-color);}
+
+.legal-nav button {
+  background: none;
+  border: none;
+  color: var(--brand-color);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;}
+/* =========================
+   ROTATE LOCK (ландшафт → блок)
+   ========================= */
+.rotate-lock{
+  position: fixed;
+  z-index: 3000;
+  inset: 0;
+  display: none;                       /* по умолчанию скрыта */
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    linear-gradient(0deg, rgba(255,255,255,0.92), rgba(255,255,255,0.92));
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  color: #111;
+  text-align: center;
+  pointer-events: none;                /* включим только в landscape */}
+
+.rotate-card{
+  max-width: 520px;
+  width: min(92vw, 520px);
+  border: 1px solid rgba(0,0,0,.08);
+  border-radius: var(--radius-xl);
+  padding: 20px 18px;
+  background: #fff;
+  box-shadow: var(--shadow-2);}
+
+.rotate-emoji{ font-size: 44px; line-height: 1; margin-bottom: 10px;}
+.rotate-title{ font-weight: 700; font-size: 20px; margin-bottom: 6px;}
+.rotate-text{ font-size: 15px; opacity: .85;}
+/* Блокировка взаимодействия и показ заглушки только в ландшафте */
+body.landscape .rotate-lock{
+  display: flex;
+  pointer-events: auto;}
+/* Блокируем фон (скролл/клики) когда показана заглушка */
+body.landscape{
+  overflow: hidden;
+  touch-action: none;}
+body.landscape .app-header,
+body.landscape .content,
+body.landscape .app-footer{
+  pointer-events: none;}
+/* Корректный vh на iOS (используем --vh из JS, см. ниже) */
+.rotate-lock{
+  min-height: calc(var(--vh, 1vh) * 100);}
+/* === Ветка для Safari (мобильный) — мелкие визуальные правки === */
+@supports (-webkit-touch-callout: none) {
+  body.landscape .rotate-lock{
+    background: rgba(255,255,255,0.94);}}
+/* === PWA режим: учитываем нижнюю safe-area, не дублируем то, что уже учтено в макете === */
+@media (display-mode: standalone) {
+  .rotate-lock{
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    padding-top:    calc(24px + env(safe-area-inset-top, 0px));
+    padding-left:   calc(24px + env(safe-area-inset-left, 0px));
+    padding-right:  calc(24px + env(safe-area-inset-right, 0px));}}
+/* ========================================================================== */
+/*  BURGER / OFF-CANVAS — финальный блок                                       */
+/*  - .oc-panel: колонка без внутренних «схлопов»                              */
+/*  - .oc-body: без прокрутки, гибкая колонка, низ прибит через margin-top     */
+/*  - .app-version: приглушённый центрированный текст                          */
+/*  - spacer удалён из потока                                                  */
+/* ========================================================================== */
+
+/* Корневая панель бургера */
+.oc-panel{
+  display:flex;
+  flex-direction:column;
+  min-height:0;                 /* важно для Safari: не схлопывать детей */
+  overflow:hidden;              /* отключаем любые внутренние скроллы у панели */}
+/* Тело панели (зона пунктов) */
+.oc-body{
+  display:flex;
+  flex-direction:column;
+  flex:1 1 auto;                /* тело занимает доступную высоту между хедером и низом */
+  min-height:0;                 /* Safari fix для переполнения */
+  overflow:hidden;              /* скролл полностью отключён по требованию */
+  -webkit-overflow-scrolling:auto;
+  padding-bottom:var(--footer-h, 60px); /* запас под нижний ряд кнопок бургера */}
+/* Прибиваем нижние служебные пункты к низу тела */
+.oc-body > .menu-item.backup-tools{
+  margin-top:auto;}
+/* Если spacer остался в разметке — обнулим влияние (без !important) */
+.oc-body > .menu-spacer{
+  height:0;
+  margin:0;
+  padding:0;}
+/* Пункт: «Версия приложения» */
+.menu-item.app-version{
+  text-align:center;
+  padding:10px 0 14px;}
+.menu-item.app-version .app-version-value{
+  font-size:.95rem;
+  opacity:.6;                   /* приглушённый текст */
+  letter-spacing:.2px;}
+body.modal-open { overflow: hidden;}
+/* THEME NEUTRAL TOKENS (LIGHT) */
+:root{
+  /* Neutral palette (light) */
+  --bg: #ffffff;
+  --surface-1: #ffffff;
+  --surface-2: #f7fafd; /* light panel */
+  --surface-3: #eef1f4; /* subtle surface */
+  --text: #333;
+  --text-muted: #666;
+  --border: #dfe3e8;
+  --divider: #e9eef3;
+
+  /* Shadows / overlays */
+  --shadow-color: 17,24,39; /* rgb */
+  --overlay-bg: rgba(0,0,0,.35);
+
+  /* Links / selection / scrollbars */
+  --link: var(--brand);
+  --selection-bg: rgba(53,182,255,.16);
+  --selection-fg: #111;
+
+  --scrollbar-track: #eef1f4;
+  --scrollbar-thumb: #cfd6df;
+  --scrollbar-thumb-hover: #b8c2ce;}
+/* ===== Dicts (lists & preview modal) — light ===== */
+/* ===== Экран "Словари" ===== */
+.dicts-card{
+  background:#fff; border:1px solid #e9eef3; border-radius: var(--radius-xl);
+  padding:14px 12px; box-shadow: var(--shadow-1);}
+.dicts-header h3{ margin:0 0 4px; font-size:16px;}
+.dicts-note{ opacity:.65; font-size:14px; margin-bottom:8px;}
+
+.dicts-table-wrap{ overflow:auto; -webkit-overflow-scrolling:touch;}
+.dicts-table{ width:100%; border-collapse:separate; border-spacing:0 6px;}
+.dicts-table thead th{
+  font-weight:700; font-size:14px; opacity:.75; text-align:left; padding:0 8px;}
+.dicts-table tbody td{
+  background:var(--surface-2); border:1px solid var(--border); padding:10px 8px; font-size:14px;}
+.dicts-table tbody tr td:first-child{ border-radius: var(--radius-md) 0 0 var(--radius-md);}
+.dicts-table tbody tr td:last-child{ border-radius: 0 var(--radius-md) var(--radius-md) 0;}
+
+.t-center{ text-align:center;}
+.t-right{ text-align:right;}
+/* Иконка предпросмотра в списке словарей */
+.dicts-preview{
+  cursor:pointer; font-size:18px; opacity:.8;
+  transition:transform .1s ease, opacity .1s ease;}
+.dicts-preview:hover{ transform:scale(1.15); opacity:1;}
+/* ===== Модалка предпросмотра ===== */
+.mmodal{ position:fixed; inset:0; display:none; z-index:100000;}
+.mmodal.is-open{ display:block;}
+.mmodal__overlay{ position:absolute; inset:0; background:rgba(0,0,0,.35);}
+
+.mmodal__panel{
+  position:fixed; left:50%; transform:translateX(-50%);
+  top:calc(env(safe-area-inset-top,0px) + 12px); bottom:12px;
+  width:min(720px,92vw); background:#fff;
+  border-radius: var(--radius-lg); border-top-left-radius:18px; border-top-right-radius:18px;
+  overflow:hidden; box-shadow:0 8px 28px rgba(0,0,0,.25);
+  display:flex; flex-direction:column;}
+.mmodal__header{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 14px 14px; border-bottom:1px solid var(--divider); background:#fff;
+  position:sticky; top:0; z-index:1;}
+.mmodal__header h3,.mmodal__title{
+  display:flex; align-items:center; justify-content:flex-start; gap:8px;
+  margin:0; font-size:18px; font-weight:600; color:#222; text-align:left;}
+.mmodal__close{
+  border:1px solid var(--brand,#35b6ff); background:#e8f6ff; color:var(--brand,#35b6ff);
+  border-radius: var(--radius-sm); width:28px; height:28px; display:flex; align-items:center; justify-content:center;
+  font-size:18px; line-height:1; cursor:pointer; box-shadow:0 1px 4px rgba(53,182,255,.25);
+  transition:all .15s ease;}
+.mmodal__close:hover{ background:var(--brand,#35b6ff); color:#fff; box-shadow:0 2px 6px rgba(53,182,255,.35); transform:scale(1.08);}
+.mmodal__body{ padding:10px 12px; overflow:auto;}
+
+.dict-table{ width:100%; border-collapse:collapse;}
+.dict-table thead th{ text-align:left; padding:6px 8px; border-bottom:1px solid #e9eef3; font-size:14px;}
+.dict-table tbody td{ padding:6px 8px; font-size:14px; border-bottom:1px solid #f1f4f8;}
+/* --- Колонка флага в списке словарей --- */
+.dicts-table tbody td:first-child{
+  width:48px; text-align:center; padding:8px 6px;}
+.dicts-table tbody td:first-child img{ max-width:32px; height:auto;}
+/* --- Таблица предпросмотра: убираем порядковый номер слова --- */
+.dict-table thead th:first-child,
+.dict-table tbody td:first-child{ display:none;}
+/* === Панель флагов языка на экране "Словари" === */
+.dicts-header{
+  display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;}
+.dicts-flags{ display:flex; align-items:center; gap:6px;}
+.dict-flag{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:28px; height:20px; font-size:18px; line-height:1;
+  border:1px solid transparent; border-radius: var(--radius-xs); background:#fff; cursor:pointer;
+  transition:transform .15s ease, border-color .15s ease, box-shadow .15s ease;}
+.dict-flag:hover{ transform:translateY(-1px);}
+.dict-flag.active{
+  border-color:var(--burger);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--burger) 20%, transparent);}
+/* === Dicts: выбор строки — стиль как у флагов === */
+.dicts-table tbody tr{ cursor:pointer;}
+/* красим TD, а не TR */
+.dicts-table tbody tr.is-selected > td{
+  background:#fff !important;                /* как у активного флага */
+  border-color:var(--burger);                /* берём текущую рамку ячейки и подкрашиваем */
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--burger) 20%, transparent);
+  transition:background .15s, box-shadow .15s, border-color .15s;}
+.dicts-table tbody tr.is-selected > td:first-child{
+  border-top-left-radius:12px; border-bottom-left-radius:12px;}
+.dicts-table tbody tr.is-selected > td:last-child{
+  border-top-right-radius:12px; border-bottom-right-radius:12px;}
+/* === Dicts: кнопка Ок как в тренере === */
+.dicts-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;}
+
+.dicts-actions .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 22px;
+  border-radius: var(--radius-xl);
+  border: 0;
+  background: var(--brand, #35b6ff);
+  color: #fff;
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1;
+  letter-spacing: .2px;
+  box-shadow: 0 6px 18px rgba(53, 182, 255, .28);
+  transition: transform .06s ease, filter .15s ease, box-shadow .15s ease;}
+
+.dicts-actions .btn-primary:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 8px 22px rgba(53, 182, 255, .34);}
+
+.dicts-actions .btn-primary:active {
+  transform: translateY(1px);}
+/* ===== Home (sets, cards, layout tweaks) — light ===== */
+/* ==========================================================
+ * home.css — Главная страница (базовая стабильная версия)
+ * ========================================================== */
+
+/* Контейнер контента между шапкой и футером */
+#app.content{
+  display:flex;
+  flex-direction:column;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+  height:calc(var(--vh,1vh)*100 - var(--header-h-actual) - var(--footer-h-actual));
+  /* запас снизу, чтобы карточки не упирались в фиксированный футер */
+  padding-top:8px;
+  padding-bottom:calc(var(--footer-h-actual, 60px) + 12px);}
+/* Внутренний лэйаут домашней страницы */
+.home{
+  display:flex;
+  flex-direction:column;
+  min-height:100%;
+  gap:10px;              /* компактнее, чтобы всё входило */
+  padding:0 10px;}
+/* Базовый стиль карточек */
+.home > .card,
+.home section.card{
+  background:var(--surface-1);
+  border:1px solid var(--divider);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-1);
+  padding:12px 12px;     /* компактнее, чем 14px */}
+/* ==========================================================
+ * ЗОНА 1: Сеты
+ * ========================================================== */
+
+.home-sets.card{ text-align:center;}
+
+.home-sets .sets-header{
+  display:flex; align-items:center; justify-content:center;
+  gap:6px; margin-bottom:6px;}
+
+.home-sets .flag{ font-size:16px; line-height:1;}
+
+.home-sets .sets-title{
+  font-size:14px; font-weight:700; margin:0; opacity:.85;}
+/* 10 квадратиков в ряд, сами держат квадратное соотношение */
+.home-sets .sets-grid{
+  --sets-gap:8px;
+  display:grid; grid-template-columns:repeat(10, 1fr);
+  gap:var(--sets-gap);
+  justify-content:center;
+  margin:6px 0 10px;}
+
+.set-pill{
+  aspect-ratio:1/1;
+  width:100%;
+  border-radius: var(--radius-sm);
+  border:1px solid var(--border);
+  background:var(--surface-2);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:600;
+  font-size:clamp(10px, 2vw, 12px);
+  line-height:1;
+  color:var(--text);
+  transition:box-shadow .2s ease, border-color .2s ease, background .2s ease;}
+
+.set-pill.is-done{
+  background:var(--brand-tint, #d5f3ff);
+  border-color:var(--brand, #35b6ff);
+  color:#1a7abf;}
+
+.set-pill.is-active{
+  background:var(--surface-1);
+  border-color:var(--brand, #35b6ff);
+  /* если color-mix не поддерживается — игнорируется */
+  box-shadow:0 0 0 2px color-mix(in srgb, var(--brand) 25%, transparent);}
+
+.home-sets .sets-stats{
+  font-size:14px;
+  opacity:.7;
+  text-align:center;
+  margin-top:4px;}
+/* ==========================================================
+ * ЗОНА 2: Подсказки
+ * ========================================================== */
+
+.home-hints .hints-title{
+  margin:0 0 6px;
+  font-size:14px;
+  font-weight:700;
+  opacity:.8;
+  text-align:left;}
+
+.home-hints .hints-body{
+  min-height:2.6em;                 /* «две строки» пустого места */
+  display:flex; align-items:center; justify-content:center;
+  text-align:center;
+  opacity:.75;
+  font-size:14px;
+  line-height:1.4;}
+/* ==========================================================
+ * ЗОНА 3: Тренер
+ * ========================================================== */
+
+.home-trainer.card{
+  display:grid;
+  grid-template-columns:1fr;
+  row-gap:8px;                       /* чуть плотнее */}
+/* верхняя строка: звёзды слева, сердечко справа */
+.home-trainer .trainer-top{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;}
+/* звёзды */
+.home-trainer .trainer-stars{
+  display:flex; gap:4px; font-size:18px; line-height:1; opacity:.9;}
+.home-trainer .trainer-stars .star{ opacity:.3; transition:opacity .15s ease;}
+.home-trainer .trainer-stars .star.on{ opacity:1;}
+/* сердце */
+.home-trainer .fav-toggle{
+  line-height:1; font-size:18px; opacity:.8;
+  background:none; border:0; cursor:pointer;
+  transition:color .2s, transform .15s;}
+.home-trainer .fav-toggle:hover{ color:var(--brand, #35b6ff); transform:scale(1.06);}
+.home-trainer .fav-toggle.is-fav{ color:var(--brand, #35b6ff);}
+/* слово и подпись */
+.home-trainer .trainer-word{
+  text-align:center; font-weight:700; font-size:28px; margin:4px 0 2px;}
+.home-trainer .trainer-subtitle{
+  text-align:center; font-size:14px; opacity:.7; margin:2px 0 8px;}
+/* ответы 2×2 */
+.home-trainer .answers-grid{
+  display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;}
+.answer-btn{
+  height:44px; border:0; border-radius: var(--radius-lg);
+  background:var(--brand, #35b6ff); color:var(--surface-1);
+  font-weight:700; font-size:15px; letter-spacing:.2px;
+  box-shadow:0 2px 0 rgba(0,0,0,.06);
+  transition:transform .06s ease, filter .15s ease;}
+@media (hover: hover) and (pointer: fine){ .answer-btn:hover{filter:brightness(1.05);}}
+.answer-btn:active{ transform:translateY(1px);}
+/* «Не знаю» — по центру */
+.btn-ghost.idk-btn{
+  display:block; margin:2px auto 0;
+  height:38px; padding:0 16px;
+  border:1px solid var(--border); border-radius:12px; background:var(--surface-1);
+  font-weight:600; color:var(--text);}
+@media (hover: hover) and (pointer: fine){ .btn-ghost.idk-btn:hover{border-color:var(--brand, #35b6ff); color:var(--brand, #35b6ff);}}
+/* Нижняя статистика */
+.dict-stats{
+  font-size:14px; opacity:.7; text-align:center; margin-top:4px;}
+/* ==========================================================
+ * Адаптив
+ * ========================================================== */
+@media (max-width:480px){
+  .home .card{ padding:12px; border-radius: var(--radius-lg);}
+  .home-trainer .trainer-word{ font-size:24px;}}
+/* Палитра (можешь подстроить 1 раз — всё остальное подтянется) */
+:root {
+  --answer-green-bg:   #22c55e; /* зелёный */
+  --answer-green-bd:   #16a34a; /* обводка */
+  --answer-green-hov:  #16a34a; /* ховер/нажатие */
+
+  --answer-red-bg:     #ef4444; /* красный */
+  --answer-red-bd:     #dc2626; /* обводка */
+  --answer-red-hov:    #dc2626; /* ховер/нажатие */
+
+  --answer-text-on:    var(--surface-1); /* текст на цветных кнопках */}
+/* Базовая кнопка вариантов ответа */
+.answer-btn{
+  transition: background-color .15s ease, border-color .15s ease, transform .05s ease;}
+/* Верный вариант */
+.answer-btn.is-correct{
+  background-color: var(--answer-green-bg);
+  border-color:     var(--answer-green-bd);
+  color:            var(--answer-text-on);}
+.answer-btn.is-correct:hover{ background-color: var(--answer-green-hov);}
+/* Неверный вариант (одиночная подсветка выбранного) */
+.answer-btn.is-wrong{
+  background-color: var(--answer-red-bg);
+  border-color:     var(--answer-red-bd);
+  color:            var(--answer-text-on);}
+.answer-btn.is-wrong:hover{ background-color: var(--answer-red-hov);}
+/* Когда кнопка отключена — не «бледним» слишком сильно */
+.answer-btn:disabled{
+  opacity: .95;
+  cursor: default;
+  transform: none;}
+/* === Зона 1: окно прокрутки (видно 2 ряда, остальное скроллится внутри) === */
+.home-sets .sets-viewport{
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: block;
+
+  /* Высота: 2 ряда тайлов + зазор между ними */
+  height: calc((var(--tile-size, 28px) * 2) + var(--sets-gap, 8px));
+
+  /* --- Исправляем обрезку свечения (тень focus) --- */
+  --clip-pad: 6px; /* буфер, чтобы тень не обрезалась */
+  padding: var(--clip-pad) 4px var(--clip-pad) var(--clip-pad);
+  margin-left: calc(-1 * var(--clip-pad));
+  margin-top:  calc(-1 * var(--clip-pad));
+  /* ---------------------------------------------- */
+
+  box-sizing: content-box;}
+/* Text selection */
+::selection{ background: var(--selection-bg, rgba(53,182,255,.16)); color: var(--text, #333);}
+/* Accessible focus styles */
+:where(a,button,[role="button"],input,select,textarea,.btn,.answer-btn):focus-visible{
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 30%, transparent);}
+:where(a,button,[role="button"],input,select,textarea,.btn,.answer-btn):focus{
+  outline: none;}
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce){
+  *{
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;}}

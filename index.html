@@ -42,17 +42,20 @@
   <meta name="twitter:title" content="MOYAMOVA — офлайн‑тренажёр языков на карточках">
   <meta name="twitter:description" content="Изучайте языки с карточками слов: работает офлайн без интернета, без рекламы и подписок. Немецкий, английский, французский, сербский. Прогресс, статистика, экспорт.">
   <meta name="twitter:image" content="https://moyamova.online/img/android-chrome-512x512.png">
+
+  <meta name="apple-mobile-web-app-title" content="MOYAMOVA">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "MOYAMOVA", "applicationCategory": "EducationalApplication", "operatingSystem": "Web", "isAccessibleForFree": true, "offers": {"@type": "Offer", "price": "0", "priceCurrency": "CHF"}, "url": "https://moyamova.online/", "inLanguage": ["ru", "uk", "de", "en", "fr", "sr"], "description": "Изучайте языки с карточками слов: работает офлайн без интернета, без рекламы и подписок. Немецкий, английский, французский, сербский. Прогресс, статистика, экспорт.", "publisher": {"@type": "Organization", "name": "MOYAMOVA"}}</script>
 </head>
 <body>
 
   <header class="header">
     <div class="brand">
-      <a class="brand-link" href="./" aria-label="Главная" aria-label="" data-i18n-aria="ariaHome">
+      <a class="brand-link" href="./" aria-label="Главная" data-i18n-aria="ariaHome">
         <img src="./img/logo_64.png" alt="MOYAMOVA">
         <h1 class="brand-title">MOYAMOVA</h1>
       </a>
     </div>
-    <button id="btnMenu" class="burger" aria-label="Меню" aria-label="" data-i18n-aria="ariaMenu">☰</button>
+    <button id="btnMenu" class="burger" aria-label="Меню" data-i18n-aria="ariaMenu">☰</button>
   </header>
 
   <main id="app" class="content"></main>
@@ -62,9 +65,9 @@
     <div class="oc-overlay" data-close="overlay"></div>
     <aside class="oc-panel" role="menu" aria-label="Меню">
       <div class="oc-header">
-        <button class="oc-back" aria-label="Назад" data-close="back" aria-label="" data-i18n-aria="ariaBack">←</button>
+        <button class="oc-back" aria-label="Назад" data-close="back" data-i18n-aria="ariaBack">←</button>
         <div class="oc-title">Меню</div>
-        <button class="oc-close" aria-label="Закрыть" data-close="close" aria-label="" data-i18n-aria="ariaClose">✕</button>
+        <button class="oc-close" aria-label="Закрыть" data-close="close" data-i18n-aria="ariaClose">✕</button>
       </div>
 
       <div class="oc-body">
@@ -133,7 +136,7 @@
 
       <!-- Нижний ряд быстрых действий -->
       <div class="actions-row-bottom" role="group" aria-label="Быстрые действия">
-        <button class="action-btn" data-action="guide"   aria-label="Инструкция" aria-label="" data-i18n-aria="ariaGuide">📘</button>
+        <button class="action-btn" data-action="guide"   aria-label="Инструкция" data-i18n-aria="ariaGuide">📘</button>
         <button class="action-btn" data-action="donate"  aria-label="Поддержите проект">💰</button>
         <button class="action-btn" data-action="contact" aria-label="Связаться">✉️</button>
         <button class="action-btn" data-action="share"   aria-label="Поделиться">🔗</button>
@@ -147,16 +150,16 @@
     <button class="nav-btn active" data-action="home" aria-label="Главная">
       <span class="nav-icon" data-icon="home"></span>
     </button>
-    <button class="nav-btn" data-action="dicts" aria-label="Словари" aria-label="" data-i18n-aria="ariaDicts">
+    <button class="nav-btn" data-action="dicts" aria-label="Словари" data-i18n-aria="ariaDicts">
       <span class="nav-icon" data-icon="book"></span>
     </button>
-    <button class="nav-btn" data-action="fav" aria-label="Избранное" aria-label="" data-i18n-aria="ariaFav">
+    <button class="nav-btn" data-action="fav" aria-label="Избранное" data-i18n-aria="ariaFav">
       <span class="nav-icon" data-icon="star"></span>
     </button>
-    <button class="nav-btn" data-action="mistakes" aria-label="Мои ошибки" aria-label="" data-i18n-aria="ariaMistakes">
+    <button class="nav-btn" data-action="mistakes" aria-label="Мои ошибки" data-i18n-aria="ariaMistakes">
       <span class="nav-icon" data-icon="warning"></span>
     </button>
-    <button class="nav-btn" data-action="stats" aria-label="Статистика" aria-label="" data-i18n-aria="ariaStats">
+    <button class="nav-btn" data-action="stats" aria-label="Статистика" data-i18n-aria="ariaStats">
       <span class="nav-icon" data-icon="stats"></span>
     </button>
   </footer>

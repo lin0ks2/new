@@ -69,5 +69,29 @@
       "type": "image/png",
       "sizes": "64x64"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Учить слова",
+      "url": "./#study",
+      "icons": [
+        {
+          "src": "./img/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Избранное",
+      "url": "./#fav",
+      "icons": [
+        {
+          "src": "./img/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
   ]
 }

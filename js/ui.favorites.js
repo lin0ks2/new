@@ -2,9 +2,10 @@
  * ui.favorites.js — Экран «Избранное» (по образцу «Мои ошибки»)
  *  - Группы по языку базового словаря (флаги)
  *  - Таблица словарей с количеством избранных слов
- *  - 👁️ предпросмотр (модалка), 🗑️ очистка избранного по словарю
- *  - ОК: если ≥4 слов → тренировка favorites:<lang>:<baseKey>, иначе — предпросмотр
- *  - Хук на футер: [data-action="fav"]
+ *  - 👁️ предпросмотр, 🗑️ очистка словаря
+ *  - ОК: если ≥4 → тренировка favorites:<lang>:<baseKey>, иначе — предпросмотр
+ *  - Хук на футер [data-action="fav"]
+ *  - Фикс: при смене языка интерфейса остаёмся на экране «Избранное»
  * ========================================================== */
 (function(){
   'use strict';
@@ -112,6 +113,7 @@
             <div class="card__body"><p style="opacity:.7; margin:0;">${t.empty}</p></div>
           </section>
         </div>`;
+      app.setAttribute('data-current-view','favorites'); // маркер экрана
       return;
     }
 
@@ -152,6 +154,7 @@
         </section>
       </div>
     `;
+    app.setAttribute('data-current-view','favorites'); // маркер экрана
 
     // Флаги (табы)
     function renderFlags(){
@@ -241,8 +244,8 @@
         const key = row.getAttribute('data-key');
         const count = row.getAttribute('data-count')|0;
         if (count < 4) { openPreview(key); return; }
-        saveSelected(key);
-        try { A.Trainer && A.Trainer.setDeckKey && A.Trainer.setDeckKey(key); } catch(_){}
+        try{ localStorage.setItem('fav.ui.selectedKey', key); }catch(_){}
+        try{ A.Trainer && A.Trainer.setDeckKey && A.Trainer.setDeckKey(key); }catch(_){}
         // переход на главную (как в «Ошибках»)
         try{
           if (A.Router && typeof A.Router.go==='function'){ A.Router.go('home'); }
@@ -262,4 +265,47 @@
     try{ e.preventDefault(); e.stopPropagation(); }catch(_){}
     try{ A.ViewFavorites && A.ViewFavorites.mount && A.ViewFavorites.mount(); }catch(_){}
   }, { capture:true });
+
+  /* ===== Фикс удержания экрана при смене языка интерфейса ===== */
+  (function(){
+    function isFavoritesMounted(){
+      try{
+        var app = document.getElementById('app');
+        return !!app && app.getAttribute('data-current-view') === 'favorites';
+      }catch(_){ return false; }
+    }
+
+    // A) тумблер языка в бургер-меню
+    document.addEventListener('change', function(e){
+      var t = e && e.target;
+      if (t && t.id === 'langToggle' && isFavoritesMounted()){
+        try { A.ViewFavorites && A.ViewFavorites.mount && A.ViewFavorites.mount(); } catch(_){}
+      }
+    }, { passive:true, capture:true });
+
+    // B) изменение data-lang на <html>
+    try{
+      var mo = new MutationObserver(function(recs){
+        if (!isFavoritesMounted()) return;
+        for (var i=0;i<recs.length;i++){
+          var r = recs[i];
+          if (r.type === 'attributes' && r.attributeName === 'data-lang'){
+            try { A.ViewFavorites && A.ViewFavorites.mount && A.ViewFavorites.mount(); } catch(_){}
+            break;
+          }
+        }
+      });
+      mo.observe(document.documentElement, { attributes:true, attributeFilter:['data-lang'] });
+    }catch(_){}
+
+    // C) кастомные события (если проект их генерирует)
+    ['lexitron:ui-lang-changed','app:ui-lang-changed'].forEach(function(ev){
+      document.addEventListener(ev, function(){
+        if (isFavoritesMounted()){
+          try { A.ViewFavorites && A.ViewFavorites.mount && A.ViewFavorites.mount(); } catch(_){}
+        }
+      }, { passive:true });
+    });
+  })();
+
 })();

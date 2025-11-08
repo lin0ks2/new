@@ -1,44 +1,59 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-    <meta name="color-scheme" content="light dark">
-<title>MOYAMOVA</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 
-  <!-- Fonts & CSS -->
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/theme.light.css">
-  <link rel="stylesheet" href="./css/theme.dark.css">
+  <title>MOYAMOVA — тренажёр немецких слов (DE ⇄ RU/UK)</title>
+  <meta name="description" content="MOYAMOVA — лёгкий офлайн-тренажёр карточек с немецкими словами: избранное, ошибки, импорт/экспорт, работает как PWA даже без интернета.">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#ffffff">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="MOYAMOVA — тренажёр немецких слов (DE ⇄ RU/UK)">
+  <meta property="og:description" content="Лёгкий офлайн-тренажёр карточек: немецкие слова, избранное, ошибки, бэкап. Работает как PWA.">
+  <meta property="og:locale" content="ru_RU">
+  <!-- При деплое укажи абсолютный адрес проекта -->
+  <!-- <meta property="og:url" content="https://your-domain.example/moyamova/"> -->
+  <!-- <meta property="og:image" content="https://your-domain.example/moyamova/img/share.png"> -->
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="MOYAMOVA — тренажёр немецких слов (DE ⇄ RU/UK)">
+  <meta name="twitter:description" content="Лёгкий офлайн-тренажёр карточек с немецкими словами. Работает как PWA.">
+  <!-- <meta name="twitter:image" content="https://your-domain.example/moyamova/img/share.png"> -->
+
+  <!-- Canonical (заполни абсолютный URL при деплое) -->
+  <!-- <link rel="canonical" href="https://your-domain.example/moyamova/"> -->
+
   <!-- PWA -->
   <link rel="manifest" href="./manifest.webmanifest">
-  <meta name="theme-color" content="#ffffff">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="apple-touch-icon" sizes="180x180" href="./img/apple-touch-icon-180x180.png">
-  <link rel="shortcut icon" href="./img/logo_64.png">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
-  <!-- Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-DZL66KME4H"></script>
+  <!-- Иконки (оставь как у тебя; строки ниже — безопасные дефолты, если уже есть свои — не дублируй) -->
+  <link rel="icon" sizes="32x32" href="./favicon-32.png">
+  <link rel="icon" sizes="192x192" href="./icon-192.png">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+
+  <!-- Шрифты/префетчи (опционально; если уже подключены — не дублируй) -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <!-- <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet"> -->
+
+  <!-- Стили -->
+  <link rel="stylesheet" href="./css/theme.light.css" media="(prefers-color-scheme: light)">
+  <link rel="stylesheet" href="./css/theme.dark.css" media="(prefers-color-scheme: dark)">
+
+  <!-- Регистрация SW -->
   <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){ dataLayer.push(arguments); }
-    gtag('js', new Date());
-    gtag('config', 'G-DZL66KME4H', { transport_type: 'beacon' });
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js');
+      });
+    }
   </script>
-
-  <script>
-  (function(){
-    try{
-      var k='ui-theme';
-      var v=localStorage.getItem(k);
-      var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-      var isDark = (v==='dark') || (v!=='light' && prefersDark);
-      if (isDark) document.documentElement.setAttribute('data-theme','dark');
-    }catch(e){}
-  })();
-  </script>
-
 </head>
 <body>
   <header class="header">

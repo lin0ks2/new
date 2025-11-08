@@ -127,9 +127,45 @@ App.Backup.import = function(){
           } catch(e){ console.warn('post-import UI update warning:', e); }
 
           // Надёжно: перезапустим, чтобы все модули перечитали LS
-          try{ if (App.UI && App.UI.toast) App.UI.toast('Импорт завершён. Перезапуск...'); }catch(_){}
-          setTimeout(function(){ location.reload(); }, 150);
-        });
+          
+          // ===== Smooth reload like updates.js =====
+          (function(){
+            function resolveLang(){
+              var l = (document.documentElement && document.documentElement.dataset && document.documentElement.dataset.lang) || '';
+              l = (l||'').toLowerCase();
+              try{
+                if (!l && window.App){
+                  if (typeof App.getUiLang==='function') l=(App.getUiLang()||'').toLowerCase();
+                  else if (App.UI_LANG) l = (''+App.UI_LANG).toLowerCase();
+                  else if (App.uiLang)  l = (''+App.uiLang).toLowerCase();
+                }
+              }catch(_){}
+              try{ if (!l) l=(localStorage.getItem('ui_lang')||localStorage.getItem('uiLang')||'').toLowerCase(); }catch(_){}
+              if (!l) l = ((navigator.language||'ru').slice(0,2)||'ru').toLowerCase();
+              if (l==='ua') l='uk';
+              if (!/^(ru|uk|en)$/.test(l)) l='en';
+              return l;
+            }
+            function T(lang){
+              var D={
+                ru:{restoring:'Восстанавливаю данные…', reloading:'Перезапускаю…', error:'Ошибка импорта данных'},
+                uk:{restoring:'Відновлюю дані…',       reloading:'Перезапускаю…',  error:'Помилка імпорту даних'},
+                en:{restoring:'Restoring data…',        reloading:'Reloading…',    error:'Import error'}
+              }; return D[lang]||D.en;
+            }
+            var dict = T(resolveLang());
+            try{
+              if (window.MoyaUpdates && typeof MoyaUpdates.setToast==='function') {
+                MoyaUpdates.setToast(dict.restoring);
+                if (typeof MoyaUpdates.showOverlay==='function') MoyaUpdates.showOverlay(true);
+              } else if (window.App && App.UI && typeof App.UI.toast==='function'){
+                App.UI.toast(dict.restoring);
+              }
+            }catch(_){}
+            try{ sessionStorage.setItem('moya_upgrading','1'); }catch(_){}
+            setTimeout(function(){ location.reload(); }, 200);
+          })();
+});
       }
       setTimeout(()=>input.remove(), 0);
     });

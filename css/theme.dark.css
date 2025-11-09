@@ -401,34 +401,24 @@ html[data-theme="dark"] :where(a,button,[role="button"],input,select,textarea,.b
   outline: none;
 }
 
-/* ===== Heart: SVG color & animation (trainer favorite) ===== */
-.home-trainer .fav-toggle { 
-  color: var(--fg-muted, #7a869a);
-  transition: color .18s ease;
-}
-.home-trainer .fav-toggle.is-fav { 
-  color: var(--brand, #35b6ff);
-}
-
-.home-trainer .fav-toggle .icon-heart { display:block; width:22px; height:22px; }
-.home-trainer .fav-toggle .heart-path {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  opacity: .9;
-  transition: transform .18s ease, fill .18s ease, stroke .18s ease, opacity .18s ease;
-}
-.home-trainer .fav-toggle.is-fav .heart-path { 
-  fill: currentColor; 
-  stroke: currentColor; 
+/* ===== Heart button (text ♡/♥) ===== */
+.heart{
+  font-size: 24px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  line-height: 1;
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  transition: color .25s ease, transform .2s ease;
 }
 
-.home-trainer .fav-toggle.pulse .icon-heart { animation: heart-pulse .32s ease; }
-@keyframes heart-pulse { 
-  0% { transform: scale(1) } 
-  35% { transform: scale(1.12) } 
-  100% { transform: scale(1) } 
-}
-@media (prefers-reduced-motion: reduce){
-  .home-trainer .fav-toggle.pulse .icon-heart { animation: none; }
-}
+/* Цвета (можешь скорректировать переменные под свою тему) */
+.heart{ color: var(--icon-muted, #cbd5e1); }
+.heart.is-fav{ color: var(--icon-active, #fbbf24); }   /* активное сердце */
+.heart:hover{ color: var(--icon-hover, #facc15); }     /* ховер */
+
+/* Звёзды тренера на месте (если нужно) */
+.trainer-stars .star{ opacity:.45; }
+.trainer-stars .star.on{ opacity:1; }

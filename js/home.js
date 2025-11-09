@@ -118,7 +118,7 @@
       // Блокировка: сверяемся с фактическим "слайсом" тренера (самый надёжный источник)
       if (before !== want) {
         const key = activeDeckKey();
-        const ids = getCurrentSliceWordIds(key); // ⬅️ используем тренерный слайс/фолбэк
+        const ids = getCurrentSliceWordIds(key);
         const anyProgress = hasProgressInSet(key, ids);
         const allDone     = isSetDone(key, ids);
         if (anyProgress && !allDone) {
@@ -190,7 +190,7 @@
     const stars = (A.state && A.state.stars) || {};
     for (let i=0;i<ids.length;i++){
       const val = Number(stars[starKey(ids[i], key)] || 0);
-      if (val > 0) return true;           // блокируем даже при 0.5
+      if (val > 0) return true; // блокируем даже при 0.5
     }
     return false;
   }
@@ -387,36 +387,45 @@
   }
 
   /* ------------------------------- Тренер ------------------------------- */
-  function renderTrainer() {
+  function renderTrainer(retryN) {
     const key = activeDeckKey();
 
-    // 1) Пытаемся взять слайс у тренера
+    // 1) Слайс тренера (если готов)
     let slice = [];
     try {
       if (A.Trainer && typeof A.Trainer.getDeckSlice === 'function') {
         slice = A.Trainer.getDeckSlice(key) || [];
       }
-    } catch(_) {}
+    } catch (_) {}
 
-    // 2) Фолбэк: собираем слайс из активного сета
+    // 2) Фолбэк: активный сет по SET_SIZE
     if (!slice.length) {
       const deck = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
         ? (A.Decks.resolveDeckByKey(key) || [])
         : [];
-      const idx  = getActiveBatchIndex();
-      const from = idx * SET_SIZE;
-      const to   = Math.min(deck.length, (idx + 1) * SET_SIZE);
-      slice = deck.slice(from, to);
+      if (deck.length) {
+        const idx  = getActiveBatchIndex();
+        const from = idx * SET_SIZE;
+        const to   = Math.min(deck.length, (idx + 1) * SET_SIZE);
+        slice = deck.slice(from, to);
+      }
     }
 
-    // Совсем пусто — аккуратно очистим и выйдем
+    // 3) Ещё рано? — мягко подождём и попробуем снова (до 5 раз, с небольшой задержкой)
     if (!slice.length) {
-      const answers = document.querySelector('.answers-grid');
-      const wordEl  = document.querySelector('.trainer-word');
-      const stars   = document.querySelector('.trainer-stars');
-      if (answers) answers.innerHTML = '';
-      if (wordEl)  wordEl.textContent = '';
-      if (stars)   stars.innerHTML = '';
+      const tries = (retryN | 0);
+      if (tries < 5) {
+        setTimeout(() => renderTrainer(tries + 1), 60 * (tries + 1)); // 60,120,180,240,300 мс
+      }
+      // подчистим UI на первом заходе
+      if (!tries) {
+        const answers = document.querySelector('.answers-grid');
+        const wordEl  = document.querySelector('.trainer-word');
+        const stars   = document.querySelector('.trainer-stars');
+        if (answers) answers.innerHTML = '';
+        if (wordEl)  wordEl.textContent = '';
+        if (stars)   stars.innerHTML = '';
+      }
       return;
     }
 
@@ -473,7 +482,6 @@
     function afterAnswer(correct) {
       try { A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender(); } catch(_){}
     }
-
     function lockAll(correctId) {
       const btns = answers.querySelectorAll('.answer-btn');
       btns.forEach(btn => {

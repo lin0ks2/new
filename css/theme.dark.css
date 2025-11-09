@@ -417,7 +417,13 @@ html[data-theme="dark"] :where(a,button,[role="button"],input,select,textarea,.b
 /* Цвета (можешь скорректировать переменные под свою тему) */
 .heart{ color: var(--icon-muted, #cbd5e1); }
 .heart.is-fav{ color: var(--icon-active, #fbbf24); }   /* активное сердце */
-.heart:hover{ color: var(--icon-hover, #facc15); }     /* ховер */
+/* hover-цвет только для нужного состояния */
+@media (hover: hover) and (pointer: fine){
+  .heart:not(.is-fav):hover { color: var(--icon-muted-hover, #94a3b8); }
+  .heart.is-fav:hover       { color: var(--icon-active-hover, #f59e0b); }
+}
+/* можно оставить общий “слегка увеличить” */
+.heart:hover{ transform: scale(1.06); }
 
 /* Звёзды тренера на месте (если нужно) */
 .trainer-stars .star{ opacity:.45; }

@@ -1,9 +1,3 @@
-/* ======================================================================================
-   theme.light.css — Consolidated light theme (tokens + dicts + home)
-   This file REPLACES css/tokens.css, css/dicts.css, css/home.css
-   Keep theme.dark.css loaded after this file for dark overrides via [data-theme="dark"].
-   ====================================================================================== */
-
 /* ===== Tokens (brand, surfaces, layout) — light ===== */
 /* ========================================================================== */
 /*  TOKENS.CSS — ЧИСТАЯ СБОРКА С КОММЕНТАРИЯМИ                                */

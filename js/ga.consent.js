@@ -88,6 +88,18 @@
   .ga-banner button{border-color:#c7cfdb;color:#111}
   .ga-banner button.primary{background:#111;color:#fff;border-color:#111}
 }`;
+
+styleEl.textContent += `
+.ga-banner{ text-align:center; }
+.ga-banner .txt{ margin-left:auto; margin-right:auto; }
+.ga-banner .btns{ justify-content:center; align-items:center; }
+
+@media (max-width:480px){
+  .ga-banner .btns{ width:100%; flex-direction:column; gap:8px; }
+  .ga-banner button{ width:100%; }
+}
+`;
+    
     document.head.appendChild(styleEl);
   }
 

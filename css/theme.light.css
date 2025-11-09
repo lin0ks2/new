@@ -892,7 +892,7 @@ body.modal-open { overflow: hidden;}
   text-align:left;}
 
 .home-hints .hints-body{
-  min-height:2.6em;                 /* «две строки» пустого места */
+  min-height:3.9em;                 /* «две строки» пустого места */
   display:flex; align-items:center; justify-content:center;
   text-align:center;
   opacity:.75;

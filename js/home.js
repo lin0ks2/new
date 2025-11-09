@@ -1,9 +1,9 @@
 /* ==========================================================
  * home.js — Главная
  *  - Режимы normal/hard (±0.5 в hard)
- *  - Половинные звёзды
+ *  - Половинные звёзды (требуют CSS .star.full/.star.half)
  *  - Сердце как текст ♡/♥
- *  - Тост в Зоне 2 при переключении сложности
+ *  - Строка-индикатор режима в Зоне 2 (держится ~4.8s)
  * ========================================================== */
 (function () {
   'use strict';
@@ -33,23 +33,18 @@
   }
   function setMode(mode) {
     const m = (mode === 'hard') ? 'hard' : 'normal';
-    // html data-атрибут
     document.documentElement.dataset.level = m;
-    // состояние/сохранение
     A.settings = A.settings || {};
     A.settings.mode = m;
     if (typeof A.saveSettings === 'function') { try { A.saveSettings(A.settings); } catch(_){} }
-    // гарантируем раздельные карты звёзд
     ensureStarsByMode();
-    // показать тост при следующем рендере тренера
-    A.__pendingModeToast = true;
+    A.__pendingModeToast = true; // показать строку при следующем рендере
   }
 
   // Раздельные карты звёзд для двух режимов + "виртуальное" свойство state.stars
   function ensureStarsByMode() {
     A.state = A.state || {};
     if (!A.state._stars_normal && A.state.stars && typeof A.state.stars === 'object') {
-      // первичная миграция: скопируем старое состояние в обе карты
       A.state._stars_normal = Object.assign({}, A.state.stars);
       A.state._stars_hard   = Object.assign({}, A.state.stars);
     }
@@ -108,22 +103,23 @@
   function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
   function uniqueById(arr) { const s = new Set(); return arr.filter(x => { const id = String(x.id); if (s.has(id)) return false; s.add(id); return true; }); }
 
-  /* ------------------------ Подсказки / тост зоны 2 ------------------------ */
+  /* ------------------------ Подсказки / строка зоны 2 ------------------------ */
   function renderHints(text) {
     const el = document.getElementById('hintsBody');
     if (!el) return;
     el.textContent = text || ' ';
   }
 
-  // Центр-тост в секции .home-hints (Зона 2)
+  // Строка-индикатор в секции .home-hints (Зона 2)
   function showHintToast(mode, extra){
     const sec = document.querySelector('.home-hints');
     if (!sec) return;
-    let t = sec.querySelector('.hints-toast');
-    if (t) t.remove();
 
-    t = document.createElement('div');
-    t.className = 'hints-toast ' + (mode === 'hard' ? 'hard' : 'normal');
+    let line = sec.querySelector('.hints-line');
+    if (line) line.remove();
+
+    line = document.createElement('div');
+    line.className = 'hints-line ' + (mode === 'hard' ? 'hard' : 'normal');
 
     const uk = getUiLang() === 'uk';
     const title = uk
@@ -134,11 +130,16 @@
       ? (mode === 'hard' ? '±0.5 зірки за відповідь' : 'цілі зірки за відповідь')
       : (mode === 'hard' ? '±0.5 звезды за ответ' : 'целые звезды за ответ');
 
-    t.innerHTML = `<div class="mode">${title}</div><div class="sub">${sub}${extra ? ` · ${extra}` : ''}</div>`;
-    sec.appendChild(t);
+    line.innerHTML = `<span class="mode">${title}</span> · <span class="sub">${sub}${extra ? ` · ${extra}` : ''}</span>`;
+    sec.appendChild(line);
 
-    requestAnimationFrame(() => t.classList.add('show'));
-    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 220); }, 1600);
+    requestAnimationFrame(() => line.classList.add('show'));
+
+    clearTimeout(App.__hintTimer);
+    App.__hintTimer = setTimeout(() => {
+      line.classList.remove('show');
+      setTimeout(() => line.remove(), 300);
+    }, 4800);
   }
 
   /* --------------------------- Избранное (сердце) --------------------------- */
@@ -282,7 +283,7 @@
     const box = document.querySelector('.trainer-stars');
     if (!box || !word) return;
     const max  = (A.Trainer && typeof A.Trainer.starsMax === 'function') ? A.Trainer.starsMax() : 5;
-    const have = getStars(word.id); // допускаем .5
+    const have = getStars(word.id);
 
     let html = '';
     for (let i = 1; i <= max; i++) {
@@ -360,7 +361,7 @@
     wordEl.textContent = word.word || word.term || '';
     renderStarsFor(word);
 
-    // Если нужно — показать тост с режимом и текущим значением звёзд
+    // Показать строку-статус о режиме и текущих звёздах (если запрошено)
     if (A.__pendingModeToast) {
       const m = getMode();
       const starsMax = (A.Trainer && typeof A.Trainer.starsMax === 'function') ? A.Trainer.starsMax() : 5;
@@ -380,7 +381,7 @@
     const ADV_DELAY = 350;
 
     function afterAnswer(correct) {
-      // В normal — оставляем как у движка.
+      // В normal — оставляем движок как есть.
       // В hard — принудительно шаг ±0.5.
       if (getMode() === 'hard') {
         try {
@@ -519,12 +520,11 @@
 
   function mountApp() {
     ensureStarsByMode();
-    setMode(getMode());          // синхронизируем режим с html/settings
+    setMode(getMode());
     bindLevelToggle();
     bindFooterNav();
     Router.routeTo('home');
-    // Показать текущий режим при первом входе
-    A.__pendingModeToast = true;
+    A.__pendingModeToast = true; // показать строку при первом входе
   }
 
   A.Home = { mount: mountApp };

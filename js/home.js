@@ -1,104 +1,70 @@
 /* ==========================================================
- * home.js — Главная
- *  - Режимы normal/hard (±0.5 в hard)
- *  - Половинные звёзды (full / half / empty)
- *  - Сердце как текст ♡/♥
- *  - Строка-индикатор режима в Зоне 2 (~4.8s)
- *  - Фикс языка: читаем dataset.lang и храним в settings
+ * home.js — Главная (fix: старый рабочий тогл языка)
+ *  - Единая setUiLang(): dataset.lang + html@lang + save + event
+ *  - Тогл языка: checked => 'uk', unchecked => 'ru'
+ *  - Остальная логика — как в новой сборке
  * ========================================================== */
 (function () {
   'use strict';
   const A = (window.App = window.App || {});
 
+  /* ----------------------------- Константы ----------------------------- */
   const ACTIVE_KEY_FALLBACK = 'de_verbs';
   const SET_SIZE = (A.Config && A.Config.setSizeDefault) || 40;
 
   /* ---------------------------- Язык/строки ---------------------------- */
   function getUiLang() {
-    // 1) приоритет — то, что выставляет тогл/страница
-    const dl = (document.documentElement.dataset.lang || '').toLowerCase();
-    if (dl === 'uk' || dl === 'ru') return dl;
-    // 2) fallback — сохранённые настройки
-    const s = (A.settings && (A.settings.lang || A.settings.uiLang)) || 'ru';
-    return (String(s).toLowerCase() === 'uk') ? 'uk' : 'ru';
+    // Старый рабочий приоритет: настройки → html@lang → ru
+    const s = (A.settings && (A.settings.lang || A.settings.uiLang)) || null;
+    const attr = (document.documentElement.getAttribute('lang') || '').toLowerCase();
+    const v = (s || attr || 'ru').toLowerCase();
+    return (v === 'uk') ? 'uk' : 'ru';
   }
+
+  // ЕДИНАЯ точка смены языка (как в старой сборке)
+  function setUiLang(code){
+    const lang = (code === 'uk') ? 'uk' : 'ru';
+    // persist
+    A.settings = A.settings || {};
+    A.settings.lang = lang;
+    if (typeof A.saveSettings === 'function') { try { A.saveSettings(A.settings); } catch(_){} }
+    // sync attrs
+    document.documentElement.dataset.lang = lang;
+    document.documentElement.setAttribute('lang', lang);
+    // событие для i18n и бургер-надписей/aria
+    const ev = new Event('lexitron:ui-lang-changed');
+    try { document.dispatchEvent(ev); } catch(_){}
+    try { window.dispatchEvent(ev); } catch(_){}
+  }
+
   function tUI() {
     const uk = getUiLang() === 'uk';
     return uk
       ? { hints: 'Підказки', choose: 'Оберіть переклад', idk: 'Не знаю', fav: 'У вибране' }
       : { hints: 'Подсказки', choose: 'Выберите перевод', idk: 'Не знаю', fav: 'В избранное' };
   }
-  // Привязка тогла языка (бургер). Синхронизируем dataset.lang, settings и перерисовываем Home.
+
+  // Привязка тогла языка (старый рабочий вариант: checked => 'uk')
   function bindLangToggle() {
     const t = document.getElementById('langToggle');
     if (!t) return;
-    // в твоей верстке: checked => 'ru', unchecked => 'uk'
-    const cur = getUiLang();
-    t.checked = (cur === 'ru');
+    t.checked = (getUiLang() === 'uk'); // как было в старой сборке
     t.addEventListener('change', () => {
-      const target = t.checked ? 'ru' : 'uk';
-      document.documentElement.dataset.lang = target;
-      A.settings = A.settings || {};
-      A.settings.lang = target;
-      if (typeof A.saveSettings === 'function') { try { A.saveSettings(A.settings); } catch(_){} }
-      // Перерисуем текущий экран, чтобы тексты (T) сменились
+      setUiLang(t.checked ? 'uk' : 'ru');
+      // Мягкая перерисовка текущего экрана
       try {
-        if (A.Router && typeof A.Router.routeTo === 'function') { A.Router.routeTo('home'); }
-        else { mountMarkup(); renderSets(); renderTrainer(); }
+        if (A.Router && typeof A.Router.routeTo === 'function') {
+          A.Router.routeTo(A.Router.current || 'home');
+        } else {
+          mountMarkup(); renderSets(); renderTrainer();
+        }
       } catch(_){}
-    });
-  }
-
-  /* -------------------------- РЕЖИМ: normal/hard -------------------------- */
-  function getMode() {
-    const s = (A.settings && A.settings.mode) || null;
-    const htmlMode = (document.documentElement.dataset.level || '').toLowerCase();
-    return s || (htmlMode === 'hard' ? 'hard' : 'normal');
-  }
-  function setMode(mode) {
-    const m = (mode === 'hard') ? 'hard' : 'normal';
-    document.documentElement.dataset.level = m;
-    A.settings = A.settings || {};
-    A.settings.mode = m;
-    if (typeof A.saveSettings === 'function') { try { A.saveSettings(A.settings); } catch(_){} }
-    ensureStarsByMode();
-    A.__pendingModeToast = true; // покажем строку при следующем renderTrainer()
-  }
-  // Раздельные карты звёзд и "виртуальное" свойство state.stars
-  function ensureStarsByMode() {
-    A.state = A.state || {};
-    if (!A.state._stars_normal && A.state.stars && typeof A.state.stars === 'object') {
-      A.state._stars_normal = Object.assign({}, A.state.stars);
-      A.state._stars_hard   = Object.assign({}, A.state.stars);
-    }
-    A.state._stars_normal = A.state._stars_normal || {};
-    A.state._stars_hard   = A.state._stars_hard   || {};
-    const desc = Object.getOwnPropertyDescriptor(A.state, 'stars');
-    if (!desc || !desc.get) {
-      try {
-        Object.defineProperty(A.state, 'stars', {
-          configurable: true,
-          enumerable: false,
-          get() { return (getMode() === 'hard') ? A.state._stars_hard : A.state._stars_normal; },
-          set(v) { (getMode() === 'hard') ? (A.state._stars_hard = v || {}) : (A.state._stars_normal = v || {}); }
-        });
-      } catch(_) {}
-    }
-    return (getMode() === 'hard') ? A.state._stars_hard : A.state._stars_normal;
-  }
-  // Тогл сложности
-  function bindLevelToggle() {
-    const t = document.getElementById('levelToggle');
-    if (!t) return;
-    t.checked = (getMode() === 'hard');
-    t.addEventListener('change', () => {
-      setMode(t.checked ? 'hard' : 'normal');
-      try { renderSets(); renderTrainer(); A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender(); } catch(_){}
     });
   }
 
   /* ------------------------------ Утилиты ------------------------------ */
   const starKey = (typeof A.starKey === 'function') ? A.starKey : (id, key) => `${key}:${id}`;
+
   function activeDeckKey() {
     try {
       if (A.Trainer && typeof A.Trainer.getDeckKey === 'function') {
@@ -108,6 +74,7 @@
     try { return (A.settings && A.settings.lastDeckKey) || ACTIVE_KEY_FALLBACK; }
     catch (_) { return ACTIVE_KEY_FALLBACK; }
   }
+
   function tWord(w) {
     const lang = getUiLang();
     if (!w) return '';
@@ -118,33 +85,6 @@
   }
   function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
   function uniqueById(arr) { const s = new Set(); return arr.filter(x => { const id = String(x.id); if (s.has(id)) return false; s.add(id); return true; }); }
-
-  /* ------------------------ Зона 2: строка статуса ------------------------ */
-  function renderHints(text) {
-    const el = document.getElementById('hintsBody');
-    if (!el) return;
-    el.textContent = text || ' ';
-  }
-  function showHintToast(mode, extra){
-    const sec = document.querySelector('.home-hints');
-    if (!sec) return;
-    let line = sec.querySelector('.hints-line');
-    if (line) line.remove();
-    line = document.createElement('div');
-    line.className = 'hints-line ' + (mode === 'hard' ? 'hard' : 'normal');
-    const uk = getUiLang() === 'uk';
-    const title = uk ? (mode === 'hard' ? 'Складний режим' : 'Звичайний режим')
-                     : (mode === 'hard' ? 'Сложный режим' : 'Обычный режим');
-    const sub = uk ? (mode === 'hard' ? '±0.5 зірки за відповідь' : 'цілі зірки за відповідь')
-                   : (mode === 'hard' ? '±0.5 звезды за ответ' : 'целые звезды за ответ');
-    line.innerHTML = `<span class="mode">${title}</span> · <span class="sub">${sub}${extra ? ` · ${extra}` : ''}</span>`;
-    sec.appendChild(line);
-    requestAnimationFrame(() => line.classList.add('show'));
-    clearTimeout(App.__hintTimer);
-    App.__hintTimer = setTimeout(() => {
-      line.classList.remove('show'); setTimeout(() => line.remove(), 300);
-    }, 4800);
-  }
 
   /* --------------------------- Избранное (сердце) --------------------------- */
   function isFav(key, id) {
@@ -178,15 +118,19 @@
     } catch (_) {}
     return (lang === 'uk') ? 'Дієслова' : 'Глаголы';
   }
+
   function mountMarkup() {
     const app = document.getElementById('app');
     if (!app) return;
+
     const key   = activeDeckKey();
     const flag  = (A.Decks && A.Decks.flagForKey) ? (A.Decks.flagForKey(key) || '🇩🇪') : '🇩🇪';
     const title = resolveDeckTitle(key);
     const T = tUI();
+
     app.innerHTML = `
       <div class="home">
+        <!-- ЗОНА 1: Сеты -->
         <section class="card home-sets">
           <header class="sets-header">
             <span class="flag" aria-hidden="true">${flag}</span>
@@ -197,9 +141,13 @@
           </div>
           <p class="sets-stats" id="setStats"></p>
         </section>
+
+        <!-- ЗОНА 2: Подсказки -->
         <section class="card home-hints">
           <div class="hints-body" id="hintsBody"></div>
         </section>
+
+        <!-- ЗОНА 3: Тренер -->
         <section class="card home-trainer">
           <div class="trainer-top">
             <div class="trainer-stars" aria-hidden="true"></div>
@@ -219,11 +167,13 @@
     try { return (A.Trainer && typeof A.Trainer.getBatchIndex === 'function') ? A.Trainer.getBatchIndex(activeDeckKey()) : 0; }
     catch (_) { return 0; }
   }
+
   function renderSets() {
     const key  = activeDeckKey();
     const deck = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
       ? (A.Decks.resolveDeckByKey(key) || [])
       : [];
+
     const grid    = document.getElementById('setsBar');
     const statsEl = document.getElementById('setStats');
     if (!grid) return;
@@ -270,18 +220,18 @@
   function getStars(wordId) {
     const key = activeDeckKey();
     const v = (A.state && A.state.stars && A.state.stars[starKey(wordId, key)]) || 0;
-    return Number(v) || 0; // допускаем .5
+    return Number(v) || 0;
   }
+
   function renderStarsFor(word) {
     const box = document.querySelector('.trainer-stars');
     if (!box || !word) return;
     const max  = (A.Trainer && typeof A.Trainer.starsMax === 'function') ? A.Trainer.starsMax() : 5;
     const have = getStars(word.id);
+
     let html = '';
     for (let i = 1; i <= max; i++) {
-      if (have >= i) html += `<span class="star full" aria-hidden="true">★</span>`;
-      else if (have >= (i - 0.5)) html += `<span class="star half" aria-hidden="true">★</span>`;
-      else html += `<span class="star" aria-hidden="true">★</span>`;
+      html += `<span class="star ${have >= i ? 'full' : ''}" aria-hidden="true">★</span>`;
     }
     box.innerHTML = html;
   }
@@ -289,12 +239,15 @@
   /* ------------------------------ Варианты ------------------------------ */
   function buildOptions(word) {
     const key = activeDeckKey();
+
     if (A.UI && typeof A.UI.safeOptions === 'function') {
       return A.UI.safeOptions(word, { key, size: 4, t: tWord });
     }
+
     const deck = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
       ? (A.Decks.resolveDeckByKey(key) || [])
       : [];
+
     let pool = [];
     try { if (A.Mistakes && typeof A.Mistakes.getDistractors === 'function') pool = A.Mistakes.getDistractors(key, word.id) || []; } catch (_){}
     if (pool.length < 3) pool = pool.concat(deck.filter(w => String(w.id) !== String(word.id)));
@@ -350,17 +303,6 @@
     wordEl.textContent = word.word || word.term || '';
     renderStarsFor(word);
 
-    // Показать строку о режиме и текущих звёздах (если запрошено)
-    if (A.__pendingModeToast) {
-      const m = getMode();
-      const starsMax = (A.Trainer && typeof A.Trainer.starsMax === 'function') ? A.Trainer.starsMax() : 5;
-      const haveNow = getStars(word.id);
-      const uk = getUiLang() === 'uk';
-      const extra = uk ? `зірок: ${haveNow}/${starsMax}` : `звёзд: ${haveNow}/${starsMax}`;
-      showHintToast(m, extra);
-      A.__pendingModeToast = false;
-    }
-
     // Ответы
     const opts = buildOptions(word);
     answers.innerHTML = '';
@@ -370,21 +312,6 @@
     const ADV_DELAY = 350;
 
     function afterAnswer(correct) {
-      // В normal — как у движка; в hard — жёстко шаг ±0.5
-      if (getMode() === 'hard') {
-        try {
-          const starsMax = (A.Trainer && typeof A.Trainer.starsMax === 'function') ? A.Trainer.starsMax() : 5;
-          const map = ensureStarsByMode();
-          const k = starKey(word.id, key);
-          const prev = Number((map && map[k]) || 0);
-          let next = prev + (correct ? 0.5 : -0.5);
-          if (next < 0) next = 0;
-          if (next > starsMax) next = starsMax;
-          map[k] = next;
-          if (typeof A.saveState === 'function') { try { A.saveState(A.state); } catch(_){ } }
-        } catch(_){}
-      }
-      renderStarsFor(word);
       try { A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender(); } catch(_){}
     }
 
@@ -406,23 +333,32 @@
       b.onclick = () => {
         if (solved) return;
         const ok = String(opt.id) === String(word.id);
+
         if (ok) {
           solved = true;
           try { A.Trainer && A.Trainer.handleAnswer && A.Trainer.handleAnswer(key, word.id, true); } catch (_){}
           b.classList.add('is-correct');
-          answers.querySelectorAll('.answer-btn').forEach(btn => { if (btn !== b) btn.classList.add('is-dim'); btn.disabled = true; });
+          answers.querySelectorAll('.answer-btn').forEach(btn => {
+            if (btn !== b) btn.classList.add('is-dim');
+            btn.disabled = true;
+          });
           afterAnswer(true);
           setTimeout(() => { renderSets(); renderTrainer(); }, ADV_DELAY);
           return;
         }
+
+        // неверно
         b.classList.add('is-wrong');
         b.disabled = true;
+
         if (!penalized) {
           penalized = true;
           try { A.Trainer && A.Trainer.handleAnswer && A.Trainer.handleAnswer(key, word.id, false); } catch (_){}
           try {
             const isMistDeck = !!(A.Mistakes && A.Mistakes.isMistakesDeckKey && A.Mistakes.isMistakesDeckKey(key));
-            if (!isMistDeck && A.Mistakes && typeof A.Mistakes.push === 'function') A.Mistakes.push(key, word.id);
+            if (!isMistDeck && A.Mistakes && typeof A.Mistakes.push === 'function') {
+              A.Mistakes.push(key, word.id);
+            }
           } catch (_){}
           afterAnswer(false);
         }
@@ -458,12 +394,23 @@
       this.current = action;
       const app = document.getElementById('app');
       if (!app) return;
-      if (action === 'home') { mountMarkup(); renderSets(); renderTrainer(); renderHints(' '); return; }
+
+      if (action === 'home') {
+        mountMarkup();
+        renderSets();
+        renderTrainer();
+        // подсказки заполняем при необходимости
+        const hb = document.getElementById('hintsBody');
+        if (hb) hb.textContent = ' ';
+        return;
+      }
       if (action === 'dicts') { A.ViewDicts && A.ViewDicts.mount && A.ViewDicts.mount(); return; }
       if (action === 'mistakes') { A.ViewMistakes && A.ViewMistakes.mount && A.ViewMistakes.mount(); return; }
+
       const uk = getUiLang() === 'uk';
       const titles = { dicts: uk ? 'Словники' : 'Словари', fav: uk ? 'Вибране' : 'Избранное', mistakes: uk ? 'Мої помилки' : 'Мои ошибки', stats: uk ? 'Статистика' : 'Статистика' };
       const name = titles[action] || (uk ? 'Екран' : 'Экран');
+
       app.innerHTML = `
         <div class="home">
           <section class="card">
@@ -486,16 +433,15 @@
   }
 
   function mountApp() {
-    ensureStarsByMode();
-    setMode(getMode());
-    bindLangToggle();   // <— фикс языка
-    bindLevelToggle();
+    // Синхронизируем attrs и разослём событие один раз при старте
+    setUiLang(getUiLang());
+    bindLangToggle();
     bindFooterNav();
     Router.routeTo('home');
-    A.__pendingModeToast = true; // показать строку при первом входе
   }
 
   A.Home = { mount: mountApp };
+
   if (document.readyState !== 'loading') mountApp();
   else document.addEventListener('DOMContentLoaded', mountApp);
 })();

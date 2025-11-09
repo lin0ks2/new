@@ -118,7 +118,7 @@
       // Блокировка: сверяемся с фактическим "слайсом" тренера (самый надёжный источник)
       if (before !== want) {
         const key = activeDeckKey();
-        const ids = getCurrentSliceWordIds(key); // ⬅️ заменили вычисление набора
+        const ids = getCurrentSliceWordIds(key); // ⬅️ используем тренерный слайс/фолбэк
         const anyProgress = hasProgressInSet(key, ids);
         const allDone     = isSetDone(key, ids);
         if (anyProgress && !allDone) {
@@ -388,25 +388,55 @@
 
   /* ------------------------------- Тренер ------------------------------- */
   function renderTrainer() {
-    const key   = activeDeckKey();
-    const slice = (A.Trainer && typeof A.Trainer.getDeckSlice === 'function') ? (A.Trainer.getDeckSlice(key) || []) : [];
-    if (!slice.length) return;
+    const key = activeDeckKey();
 
+    // 1) Пытаемся взять слайс у тренера
+    let slice = [];
+    try {
+      if (A.Trainer && typeof A.Trainer.getDeckSlice === 'function') {
+        slice = A.Trainer.getDeckSlice(key) || [];
+      }
+    } catch(_) {}
+
+    // 2) Фолбэк: собираем слайс из активного сета
+    if (!slice.length) {
+      const deck = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
+        ? (A.Decks.resolveDeckByKey(key) || [])
+        : [];
+      const idx  = getActiveBatchIndex();
+      const from = idx * SET_SIZE;
+      const to   = Math.min(deck.length, (idx + 1) * SET_SIZE);
+      slice = deck.slice(from, to);
+    }
+
+    // Совсем пусто — аккуратно очистим и выйдем
+    if (!slice.length) {
+      const answers = document.querySelector('.answers-grid');
+      const wordEl  = document.querySelector('.trainer-word');
+      const stars   = document.querySelector('.trainer-stars');
+      if (answers) answers.innerHTML = '';
+      if (wordEl)  wordEl.textContent = '';
+      if (stars)   stars.innerHTML = '';
+      return;
+    }
+
+    // Выбор слова (весовой метод, если есть)
     const idx = (A.Trainer && typeof A.Trainer.sampleNextIndexWeighted === 'function')
       ? A.Trainer.sampleNextIndexWeighted(slice)
       : Math.floor(Math.random() * slice.length);
     const word = slice[idx];
 
-    // запомним текущую карточку для мягкой перерисовки звёзд при смене режима
+    // Запомним текущую карточку для мягкой перерисовки звёзд при смене режима
     A.__currentWord = word;
 
+    // Узлы интерфейса
     const answers = document.querySelector('.answers-grid');
     const wordEl  = document.querySelector('.trainer-word');
     const favBtn  = document.getElementById('favBtn');
     const idkBtn  = document.querySelector('.idk-btn');
     const stats   = document.getElementById('dictStats');
 
-    // Сердце
+    // Сердце (избранное)
     if (favBtn) {
       const favNow = isFav(key, word.id);
       favBtn.textContent = favNow ? '♥' : '♡';
@@ -508,7 +538,10 @@
       };
     }
 
-    const full = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function') ? (A.Decks.resolveDeckByKey(key) || []) : [];
+    // Статистика по словарю
+    const full = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
+      ? (A.Decks.resolveDeckByKey(key) || [])
+      : [];
     const starsMax = (A.Trainer && typeof A.Trainer.starsMax === 'function') ? A.Trainer.starsMax() : 5;
     const learned = full.filter(w => ((A.state && A.state.stars && A.state.stars[starKey(w.id, key)]) || 0) >= starsMax).length;
     if (stats) {

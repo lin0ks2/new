@@ -1,8 +1,9 @@
+
 /* ==========================================================
- * home.js — Главная (fix: старый рабочий тогл языка)
- *  - Единая setUiLang(): dataset.lang + html@lang + save + event
- *  - Тогл языка: checked => 'uk', unchecked => 'ru'
- *  - Остальная логика — как в новой сборке
+ * home.js — Главная (двухфазная отрисовка звёзд + мягкий переключатель сложности)
+ *  - setUiLang(): dataset.lang + html@lang + save + event
+ *  - bindLevelToggle(): пишет App.settings.level, не ремоунтит экран; мягко перерисовывает звёзды/статы
+ *  - Звёзды: двухфазный рендер (сначала целые, потом половинка наложением)
  * ========================================================== */
 (function () {
   'use strict';
@@ -14,24 +15,19 @@
 
   /* ---------------------------- Язык/строки ---------------------------- */
   function getUiLang() {
-    // Старый рабочий приоритет: настройки → html@lang → ru
     const s = (A.settings && (A.settings.lang || A.settings.uiLang)) || null;
     const attr = (document.documentElement.getAttribute('lang') || '').toLowerCase();
     const v = (s || attr || 'ru').toLowerCase();
     return (v === 'uk') ? 'uk' : 'ru';
   }
 
-  // ЕДИНАЯ точка смены языка (как в старой сборке)
   function setUiLang(code){
     const lang = (code === 'uk') ? 'uk' : 'ru';
-    // persist
     A.settings = A.settings || {};
     A.settings.lang = lang;
     if (typeof A.saveSettings === 'function') { try { A.saveSettings(A.settings); } catch(_){} }
-    // sync attrs
     document.documentElement.dataset.lang = lang;
     document.documentElement.setAttribute('lang', lang);
-    // событие для i18n и бургер-надписей/aria
     const ev = new Event('lexitron:ui-lang-changed');
     try { document.dispatchEvent(ev); } catch(_){}
     try { window.dispatchEvent(ev); } catch(_){}
@@ -44,14 +40,12 @@
       : { hints: 'Подсказки', choose: 'Выберите перевод', idk: 'Не знаю', fav: 'В избранное' };
   }
 
-  // Привязка тогла языка (старый рабочий вариант: checked => 'uk')
   function bindLangToggle() {
     const t = document.getElementById('langToggle');
     if (!t) return;
-    t.checked = (getUiLang() === 'uk'); // как было в старой сборке
+    t.checked = (getUiLang() === 'uk');
     t.addEventListener('change', () => {
       setUiLang(t.checked ? 'uk' : 'ru');
-      // Мягкая перерисовка текущего экрана
       try {
         if (A.Router && typeof A.Router.routeTo === 'function') {
           A.Router.routeTo(A.Router.current || 'home');
@@ -62,40 +56,42 @@
     });
   }
 
-
-// === сложность ===
-function getMode() {
-  try {
-    const fromSettings = (App.settings && (App.settings.level || App.settings.mode));
-    if (fromSettings) return String(fromSettings).toLowerCase() === 'hard' ? 'hard' : 'normal';
-  } catch(_) {}
-  const dl = (document.documentElement.dataset.level || '').toLowerCase();
-  return dl === 'hard' ? 'hard' : 'normal';
-}
-
-function bindLevelToggle() {
-  const t = document.getElementById('levelToggle');
-  if (!t) return;
-  t.checked = (getMode() === 'hard'); // checked => hard
-  t.addEventListener('change', () => {
-    const mode = t.checked ? 'hard' : 'normal';
-    App.settings = App.settings || {};
-    App.settings.level = mode;
-    try { App.saveSettings && App.saveSettings(App.settings); } catch(_){}
-    document.documentElement.dataset.level = mode;
+  /* ---------------------------- Сложность ---------------------------- */
+  // Единый геттер режима (как в старой сборке)
+  function getMode() {
     try {
-      if (App.Router && typeof App.Router.routeTo === 'function') {
-        App.Router.routeTo(App.Router.current || 'home');
-      } else {
-        if (typeof mountMarkup === 'function') { mountMarkup(); }
-        if (typeof renderSets === 'function')  { renderSets(); }
-        if (typeof renderTrainer === 'function'){ renderTrainer(); }
-      }
-      App.Stats && App.Stats.recomputeAndRender && App.Stats.recomputeAndRender();
-    } catch(_){}
-  });
-}
+      const fromSettings = (A.settings && (A.settings.level || A.settings.mode));
+      if (fromSettings) return String(fromSettings).toLowerCase() === 'hard' ? 'hard' : 'normal';
+    } catch(_) {}
+    const dl = (document.documentElement.dataset.level || '').toLowerCase();
+    return dl === 'hard' ? 'hard' : 'normal';
+  }
+  // Экспортируем совместимые хелперы шага (если не определены)
+  if (typeof A.getMode !== 'function') {
+    A.getMode = function(){ return getMode(); };
+  }
+  if (typeof A.getStarStep !== 'function') {
+    A.getStarStep = function(){ return (getMode() === 'normal') ? 1 : 0.5; };
+  }
 
+  function bindLevelToggle() {
+    const t = document.getElementById('levelToggle');
+    if (!t) return;
+    t.checked = (getMode() === 'hard'); // checked => hard
+    t.addEventListener('change', () => {
+      const mode = t.checked ? 'hard' : 'normal';
+      A.settings = A.settings || {};
+      A.settings.level = mode;
+      try { A.saveSettings && A.saveSettings(A.settings); } catch(_){}
+      document.documentElement.dataset.level = mode;
+
+      // Мягкое обновление без полного ремаута: перерисуем звёзды и статы
+      try {
+        repaintStarsOnly();
+        A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender();
+      } catch(_){}
+    });
+  }
 
   /* ------------------------------ Утилиты ------------------------------ */
   const starKey = (typeof A.starKey === 'function') ? A.starKey : (id, key) => `${key}:${id}`;
@@ -258,22 +254,38 @@ function bindLevelToggle() {
     return Number(v) || 0;
   }
 
+  // Двухфазная отрисовка: сначала целые, потом "половинка" наложением
+  function drawStarsTwoPhase(box, score, max) {
+    if (!box) return;
+    const EPS = 1e-6;
+    // Подготовим нужное число элементов
+    const kids = box.querySelectorAll('.star');
+    if (kids.length !== max) {
+      let html = '';
+      for (let i = 0; i < max; i++) html += '<span class="star" aria-hidden="true">★</span>';
+      box.innerHTML = html;
+    }
+    const stars = box.querySelectorAll('.star');
+    // Сброс классов
+    stars.forEach(el => { el.classList.remove('full','half'); });
+
+    const filled = Math.floor(score + EPS);
+    for (let i = 0; i < Math.min(filled, max); i++) {
+      stars[i].classList.add('full');
+    }
+    // половинка на следующей звезде, если есть дробная часть >= 0.5
+    const frac = score - filled;
+    if (frac + EPS >= 0.5 && filled < max) {
+      stars[filled].classList.add('half');
+    }
+  }
+
   function renderStarsFor(word) {
     const box = document.querySelector('.trainer-stars');
     if (!box || !word) return;
-        const max  = (App.Trainer && typeof App.Trainer.starsMax === 'function') ? App.Trainer.starsMax() : 5;
+    const max  = (A.Trainer && typeof A.Trainer.starsMax === 'function') ? A.Trainer.starsMax() : 5;
     const have = getStars(word.id);
-    let html = '';
-    for (let i = 1; i <= max; i++) {
-      if (have >= i) {
-        html += `<span class="star full" aria-hidden="true">★</span>`;
-      } else if (have >= (i - 0.5)) {
-        html += `<span class="star half" aria-hidden="true">★</span>`;
-      } else {
-        html += `<span class="star" aria-hidden="true">★</span>`;
-      }
-    }
-    box.innerHTML = html;
+    drawStarsTwoPhase(box, have, max);
   }
 
   /* ------------------------------ Варианты ------------------------------ */
@@ -311,13 +323,16 @@ function bindLevelToggle() {
       : Math.floor(Math.random() * slice.length);
     const word = slice[idx];
 
+    // запомним текущую карточку для мягкой перерисовки звёзд при смене режима
+    A.__currentWord = word;
+
     const answers = document.querySelector('.answers-grid');
     const wordEl  = document.querySelector('.trainer-word');
     const favBtn  = document.getElementById('favBtn');
     const idkBtn  = document.querySelector('.idk-btn');
     const stats   = document.getElementById('dictStats');
 
-    // Сердце (текст ♡/♥)
+    // Сердце
     if (favBtn) {
       const favNow = isFav(key, word.id);
       favBtn.textContent = favNow ? '♥' : '♡';
@@ -427,6 +442,19 @@ function bindLevelToggle() {
     }
   }
 
+  // Мягкая перерисовка звёзд при смене режима (без смены слова/ответов)
+  function repaintStarsOnly(){
+    try {
+      const word = A.__currentWord;
+      if (!word) return;
+      const box = document.querySelector('.trainer-stars');
+      if (!box) return;
+      const max  = (A.Trainer && typeof A.Trainer.starsMax === 'function') ? A.Trainer.starsMax() : 5;
+      const have = getStars(word.id);
+      drawStarsTwoPhase(box, have, max);
+    } catch(_){}
+  }
+
   /* ------------------------ Роутер и старт ------------------------ */
   const Router = {
     current: 'home',
@@ -439,7 +467,6 @@ function bindLevelToggle() {
         mountMarkup();
         renderSets();
         renderTrainer();
-        // подсказки заполняем при необходимости
         const hb = document.getElementById('hintsBody');
         if (hb) hb.textContent = ' ';
         return;
@@ -473,9 +500,10 @@ function bindLevelToggle() {
   }
 
   function mountApp() {
+    // Синхронизация стартовых атрибутов
     document.documentElement.dataset.level = getMode();
-    // Синхронизируем attrs и разослём событие один раз при старте
-    setUiLang(getUiLang());
+    setUiLang(getUiLang());   // синхронизируем атрибуты и событие языка
+
     bindLangToggle();
     bindLevelToggle();
     bindFooterNav();

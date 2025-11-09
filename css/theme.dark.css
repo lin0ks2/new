@@ -461,3 +461,38 @@ html[data-theme="dark"] :where(a,button,[role="button"],input,select,textarea,.b
 @media (prefers-reduced-motion: reduce){
   .trainer-stars .star.on{ animation: none; }
 }
+
+/* Унифицируем золото со сердцем */
+:root{
+  --star-gold: var(--icon-active, #fbbf24);
+  --star-muted: #cbd5e1;
+}
+
+.trainer-stars{ display:flex; gap:4px; align-items:center; }
+
+/* базовый вид */
+.trainer-stars .star{
+  font-size: 22px;
+  color: var(--star-muted);
+  opacity: .55;
+  transition: color .22s ease, opacity .22s ease, transform .22s ease, text-shadow .22s ease;
+}
+
+/* активная */
+.trainer-stars .star.on{
+  color: var(--star-gold);
+  opacity: 1;
+  animation: star-pop .26s ease;
+}
+
+/* лёгкий поп */
+@keyframes star-pop{
+  0%{ transform: scale(.88) }
+  60%{ transform: scale(1.18) }
+  100%{ transform: scale(1) }
+}
+
+/* уважаем меньше анимаций */
+@media (prefers-reduced-motion: reduce){
+  .trainer-stars .star.on{ animation: none; }
+}

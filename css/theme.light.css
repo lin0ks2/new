@@ -1114,3 +1114,45 @@ body.modal-open { overflow: hidden;}
   .trainer-stars .star.on{ animation: none; }
 }
 
+/* === IDK ("Не знаю") — тактильный отклик: пресс + риппл === */
+.idk-btn{
+  position: relative;
+  overflow: hidden;                /* чтобы риппл не выходил за края */
+  will-change: transform;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .12s ease, background-color .18s ease, color .18s ease;
+}
+
+/* лёгкое "вдавливание" при нажатии */
+.idk-btn:active{
+  transform: translateY(1px) scale(.98);
+}
+
+/* риппл из центра (использует currentColor) */
+.idk-btn::after{
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform .28s ease, opacity .28s ease;
+  pointer-events: none;            /* чтобы не мешал клику */
+}
+
+/* запуск риппла: при активном нажатии или через .tapped (см. JS ниже) */
+.idk-btn:active::after,
+.idk-btn.tapped::after{
+  opacity: .15;
+  transform: translate(-50%, -50%) scale(14);
+}
+
+/* уважаем системные настройки "меньше анимаций" */
+@media (prefers-reduced-motion: reduce){
+  .idk-btn{ transition: none; }
+  .idk-btn::after{ transition: none; }
+}

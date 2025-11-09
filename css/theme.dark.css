@@ -401,13 +401,34 @@ html[data-theme="dark"] :where(a,button,[role="button"],input,select,textarea,.b
   outline: none;
 }
 
-/* Heart icon styling for trainer favorite button */
-.home-trainer .fav-toggle .icon-heart { display:block; width:22px; height:22px; }
-.home-trainer .fav-toggle .heart-path{
-  fill:none; stroke:currentColor; stroke-width:2;
-  opacity:.9; transition:transform .18s ease, fill .18s ease, stroke .18s ease, opacity .18s ease;
+/* ===== Heart: SVG color & animation (trainer favorite) ===== */
+.home-trainer .fav-toggle { 
+  color: var(--fg-muted, #7a869a);
+  transition: color .18s ease;
 }
-.home-trainer .fav-toggle.is-fav .heart-path{ fill:currentColor; stroke:currentColor; }
-.home-trainer .fav-toggle.pulse .icon-heart{ animation:heart-pulse .32s ease; }
-@keyframes heart-pulse{ 0%{transform:scale(1)} 35%{transform:scale(1.12)} 100%{transform:scale(1)} }
-@media (prefers-reduced-motion:reduce){ .home-trainer .fav-toggle.pulse .icon-heart{ animation:none } }
+.home-trainer .fav-toggle.is-fav { 
+  color: var(--brand, #35b6ff);
+}
+
+.home-trainer .fav-toggle .icon-heart { display:block; width:22px; height:22px; }
+.home-trainer .fav-toggle .heart-path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  opacity: .9;
+  transition: transform .18s ease, fill .18s ease, stroke .18s ease, opacity .18s ease;
+}
+.home-trainer .fav-toggle.is-fav .heart-path { 
+  fill: currentColor; 
+  stroke: currentColor; 
+}
+
+.home-trainer .fav-toggle.pulse .icon-heart { animation: heart-pulse .32s ease; }
+@keyframes heart-pulse { 
+  0% { transform: scale(1) } 
+  35% { transform: scale(1.12) } 
+  100% { transform: scale(1) } 
+}
+@media (prefers-reduced-motion: reduce){
+  .home-trainer .fav-toggle.pulse .icon-heart { animation: none; }
+}

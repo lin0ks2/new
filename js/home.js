@@ -56,7 +56,6 @@
   }
 
   /* ---------------------------- Сложность ---------------------------- */
-  // Единый геттер режима (как в старой сборке)
   function getMode() {
     try {
       const fromSettings = (A.settings && (A.settings.level || A.settings.mode));
@@ -65,12 +64,48 @@
     const dl = (document.documentElement.dataset.level || '').toLowerCase();
     return dl === 'hard' ? 'hard' : 'normal';
   }
-  // Экспортируем совместимые хелперы шага (если не определены)
   if (typeof A.getMode !== 'function') {
     A.getMode = function(){ return getMode(); };
   }
   if (typeof A.getStarStep !== 'function') {
     A.getStarStep = function(){ return (getMode() === 'normal') ? 1 : 0.5; };
+  }
+
+  // 👇 мини-тост в "нашем" стиле (пытается использовать существующие, иначе фолбэк)
+  function showModeBlockedToast(){
+    const uk = getUiLang() === 'uk';
+    const msg = uk
+      ? 'Завершіть поточний сет, щоб змінити режим.'
+      : 'Завершите текущий сет, чтобы сменить режим.';
+    try {
+      if (A.UI && typeof A.UI.toast === 'function') { A.UI.toast(msg, { ttl: 3000, center: true }); return; }
+      if (A.Toast && typeof A.Toast.show === 'function') { A.Toast.show(msg, { ttl: 3000 }); return; }
+      if (typeof window.miniToast === 'function') { window.miniToast(msg, 3000); return; }
+      if (typeof window.showToast === 'function') { window.showToast(msg); return; }
+    } catch(_) {}
+    // Фолбэк: компактный баннер по центру
+    try {
+      const el = document.createElement('div');
+      el.className = 'mini-toast';
+      el.textContent = msg;
+      Object.assign(el.style, {
+        position:'fixed', left:'50%', bottom:'14dvh', transform:'translateX(-50%)',
+        maxWidth:'min(86vw, 540px)', padding:'.6rem .9rem', borderRadius:'12px',
+        border:'1px solid rgba(0,0,0,.08)', backdropFilter:'saturate(1.2) blur(6px)',
+        background:'rgba(20,30,50,.92)', color:'#fff', zIndex:'2147483646',
+        font:'13px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Arial',
+        opacity:'0', transition:'opacity .18s ease'
+      });
+      // light-mode корректировки
+      if (matchMedia && matchMedia('(prefers-color-scheme: light)').matches) {
+        el.style.background = 'rgba(255,255,255,.98)';
+        el.style.color = '#111';
+        el.style.border = '1px solid #e5e8ef';
+      }
+      document.body.appendChild(el);
+      requestAnimationFrame(()=>{ el.style.opacity='1'; });
+      setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>{ el.remove(); }, 220); }, 2600);
+    } catch(_) {}
   }
 
   function bindLevelToggle() {
@@ -88,15 +123,8 @@
         const anyProgress = hasProgressInSet(key, ids);
         const allDone     = isSetDone(key, ids);
         if (anyProgress && !allDone) {
-          // откатить тумблер к "прежнему" состоянию
-          t.checked = (before === 'hard');
-          // необязательное сообщение (нативное)
-          try {
-            const uk = getUiLang() === 'uk';
-            alert(uk
-              ? 'Завершіть поточний сет, щоб змінити режим.'
-              : 'Завершите текущий сет, чтобы сменить режим.');
-          } catch(_){}
+          t.checked = (before === 'hard'); // откат тумблера
+          showModeBlockedToast();
           return; // ничего не меняем
         }
       }
@@ -108,7 +136,6 @@
       try { A.saveSettings && A.saveSettings(A.settings); } catch(_){}
       document.documentElement.dataset.level = mode;
 
-      // Мягкое обновление без полного ремаута: перерисуем звёзды и статы
       try {
         repaintStarsOnly();
         A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender();
@@ -309,11 +336,9 @@
     return Number(v) || 0;
   }
 
-  // Двухфазная отрисовка: сначала целые, потом "половинка" наложением
   function drawStarsTwoPhase(box, score, max) {
     if (!box) return;
     const EPS = 1e-6;
-    // Подготовим нужное число элементов
     const kids = box.querySelectorAll('.star');
     if (kids.length !== max) {
       let html = '';
@@ -321,14 +346,12 @@
       box.innerHTML = html;
     }
     const stars = box.querySelectorAll('.star');
-    // Сброс классов
     stars.forEach(el => { el.classList.remove('full','half'); });
 
     const filled = Math.floor(score + EPS);
     for (let i = 0; i < Math.min(filled, max); i++) {
       stars[i].classList.add('full');
     }
-    // половинка на следующей звезде, если есть дробная часть >= 0.5
     const frac = score - filled;
     if (frac + EPS >= 0.5 && filled < max) {
       stars[filled].classList.add('half');
@@ -378,7 +401,6 @@
       : Math.floor(Math.random() * slice.length);
     const word = slice[idx];
 
-    // запомним текущую карточку для мягкой перерисовки звёзд при смене режима
     A.__currentWord = word;
 
     const answers = document.querySelector('.answers-grid');
@@ -387,7 +409,6 @@
     const idkBtn  = document.querySelector('.idk-btn');
     const stats   = document.getElementById('dictStats');
 
-    // Сердце
     if (favBtn) {
       const favNow = isFav(key, word.id);
       favBtn.textContent = favNow ? '♥' : '♡';
@@ -409,11 +430,9 @@
       };
     }
 
-    // Слово + звёзды
     wordEl.textContent = word.word || word.term || '';
     renderStarsFor(word);
 
-    // Ответы
     const opts = buildOptions(word);
     answers.innerHTML = '';
 
@@ -458,7 +477,6 @@
           return;
         }
 
-        // неверно
         b.classList.add('is-wrong');
         b.disabled = true;
 
@@ -499,7 +517,6 @@
     }
   }
 
-  // Мягкая перерисовка звёзд при смене режима (без смены слова/ответов)
   function repaintStarsOnly(){
     try {
       const word = A.__currentWord;
@@ -557,9 +574,8 @@
   }
 
   function mountApp() {
-    // Синхронизация стартовых атрибутов
     document.documentElement.dataset.level = getMode();
-    setUiLang(getUiLang());   // синхронизируем атрибуты и событие языка
+    setUiLang(getUiLang());
 
     bindLangToggle();
     bindLevelToggle();

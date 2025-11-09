@@ -605,3 +605,35 @@ html[data-theme="dark"] :where(a,button,[role="button"],input,select,textarea,.b
 @media (prefers-reduced-motion: reduce){
   .trainer-stars .star.full{ animation: none; }
 }
+
+/* === Hint toast в Зоне 2 === */
+.home-hints{ position: relative; }
+
+.hints-toast{
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%) scale(.98);
+  max-width: min(92%, 560px);
+  padding: .75rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,.08);
+  background: rgba(20,30,50,.92);
+  color: #fff;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  opacity: 0; pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+  z-index: 10;
+}
+.hints-toast.show{ opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+.hints-toast .mode{ font-weight: 600; }
+.hints-toast .sub{ opacity: .75; font-size: 13px; margin-top: 2px; }
+
+.hints-toast.hard { border-color: rgba(255,184,0,.35); }
+.hints-toast.normal { border-color: rgba(0,0,0,.08); }
+
+@media (prefers-color-scheme: light){
+  .hints-toast{ background: rgba(255,255,255,.98); color:#111; border-color:#e5e8ef; }
+  .hints-toast.hard{ border-color: #f5d27a; }
+}

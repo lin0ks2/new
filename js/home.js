@@ -1,15 +1,88 @@
 /* ==========================================================
- * home.js — Главная (сердце как текст ♡/♥, анимация scale)
+ * home.js — Главная (режимы normal/hard, половинные звёзды)
  * ========================================================== */
 (function () {
   'use strict';
   const A = (window.App = window.App || {});
 
-  // ---- Настройки по умолчанию
+  /* ----------------------------- Константы ----------------------------- */
   const ACTIVE_KEY_FALLBACK = 'de_verbs';
   const SET_SIZE = (A.Config && A.Config.setSizeDefault) || 40;
 
-  // ---- Язык UI
+  /* -------------------------- Настройки/режим -------------------------- */
+  function getMode() {
+    const s = (A.settings && A.settings.mode) || null;
+    const htmlMode = (document.documentElement.dataset.level || '').toLowerCase();
+    return s || (htmlMode === 'hard' ? 'hard' : 'normal');
+  }
+  function setMode(mode) {
+    const m = (mode === 'hard') ? 'hard' : 'normal';
+    // html data-атрибут
+    document.documentElement.dataset.level = m;
+    // состояние/сохранение
+    A.settings = A.settings || {};
+    A.settings.mode = m;
+    if (typeof A.saveSettings === 'function') try { A.saveSettings(A.settings); } catch(_){}
+    // переключить "прокси" на корректную карту звёзд
+    ensureStarsByMode(); // гарантирует наличие карт и геттера
+  }
+
+  // Миграция и проксирование карт звёзд по режимам
+  function ensureStarsByMode() {
+    A.state = A.state || {};
+    // Поддерживаем отдельные карты
+    if (!A.state._stars_normal && A.state.stars && typeof A.state.stars === 'object') {
+      // первая миграция: скопируем старое состояние в обе карты
+      A.state._stars_normal = Object.assign({}, A.state.stars);
+      A.state._stars_hard   = Object.assign({}, A.state.stars);
+    }
+    A.state._stars_normal = A.state._stars_normal || {};
+    A.state._stars_hard   = A.state._stars_hard   || {};
+
+    // Переопределяем свойство A.state.stars так, чтобы оно ссылалось
+    // на карту текущего режима. Это сохраняет совместимость с остальным кодом.
+    const current = getMode() === 'hard' ? A.state._stars_hard : A.state._stars_normal;
+    // Если уже есть геттер — просто ничего не делаем.
+    const desc = Object.getOwnPropertyDescriptor(A.state, 'stars');
+    if (!desc || (desc && !desc.get)) {
+      try {
+        Object.defineProperty(A.state, 'stars', {
+          configurable: true,
+          enumerable: false, // чтобы в JSON сохранялись _stars_*, а не "виртуальное" поле
+          get() {
+            return (getMode() === 'hard') ? A.state._stars_hard : A.state._stars_normal;
+          },
+          set(v) {
+            if (getMode() === 'hard') A.state._stars_hard = v || {};
+            else A.state._stars_normal = v || {};
+          }
+        });
+      } catch(_) {}
+    } else {
+      // уже есть геттер — ок
+    }
+    return current;
+  }
+
+  // Привязка тогла сложности (бургер)
+  function bindLevelToggle() {
+    const t = document.getElementById('levelToggle');
+    if (!t) return;
+    // начальное состояние
+    const initialHard = getMode() === 'hard';
+    t.checked = initialHard;
+    // обработчик
+    t.addEventListener('change', () => {
+      setMode(t.checked ? 'hard' : 'normal');
+      // Быстро пересобрать текущий экран (не ломаем роутер)
+      try {
+        renderSets(); renderTrainer();
+        A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender();
+      } catch (_){}
+    });
+  }
+
+  /* ---------------------------- Язык/строки ---------------------------- */
   function getUiLang() {
     const s = (A.settings && (A.settings.lang || A.settings.uiLang)) || 'ru';
     return (String(s).toLowerCase() === 'uk') ? 'uk' : 'ru';
@@ -21,7 +94,7 @@
       : { hints: 'Подсказки', choose: 'Выберите перевод', idk: 'Не знаю', fav: 'В избранное' };
   }
 
-  // ---- Утилиты
+  /* ------------------------------ Утилиты ------------------------------ */
   const starKey = (typeof A.starKey === 'function')
     ? A.starKey
     : (id, key) => `${key}:${id}`;
@@ -47,7 +120,7 @@
   function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
   function uniqueById(arr) { const s = new Set(); return arr.filter(x => { const id = String(x.id); if (s.has(id)) return false; s.add(id); return true; }); }
 
-  // ---- Избранное (совместимо с App.toggleFavorite/isFavorite)
+  /* --------------------------- Избранное (сердце) --------------------------- */
   function isFav(key, id) {
     try { if (typeof App.isFavorite === 'function') return !!App.isFavorite(key, id); } catch(_) {}
     try { if (A.Favorites && typeof A.Favorites.has === 'function') return !!A.Favorites.has(key, id); } catch(_) {}
@@ -58,7 +131,28 @@
     try { if (A.Favorites && typeof A.Favorites.toggle === 'function') return A.Favorites.toggle(key, id); } catch(_) {}
   }
 
-  /* --------------------------- Разметка Home --------------------------- */
+  /* ------------------------- DOM-шаблон главной ------------------------- */
+  function resolveDeckTitle(key) {
+    const lang = getUiLang();
+    try {
+      if (A.Decks && typeof A.Decks.resolveNameByKeyLang === 'function') return A.Decks.resolveNameByKeyLang(key, lang);
+      if (A.Decks && typeof A.Decks.resolveNameByKey === 'function') {
+        const n = A.Decks.resolveNameByKey(key);
+        if (n && typeof n === 'object') {
+          return (lang === 'uk') ? (n.uk || n.name_uk || n.title_uk || n.name || n.title)
+                                 : (n.ru || n.name_ru || n.title_ru || n.name || n.title);
+        }
+        if (typeof n === 'string') return n;
+      }
+      if (A.Dicts && A.Dicts[key]) {
+        const d = A.Dicts[key];
+        return (lang === 'uk') ? (d.name_uk || d.title_uk || d.uk || d.name || d.title)
+                               : (d.name_ru || d.title_ru || d.ru || d.name || d.title);
+      }
+    } catch (_) {}
+    return (lang === 'uk') ? 'Дієслова' : 'Глаголы';
+  }
+
   function mountMarkup() {
     const app = document.getElementById('app');
     if (!app) return;
@@ -91,10 +185,7 @@
         <section class="card home-trainer">
           <div class="trainer-top">
             <div class="trainer-stars" aria-hidden="true"></div>
-            <button aria-label="${T.fav}"
-                    class="heart"
-                    data-title-key="tt_favorites"
-                    id="favBtn">♡</button>
+            <button aria-label="${T.fav}" class="heart" data-title-key="tt_favorites" id="favBtn">♡</button>
           </div>
           <h3 class="trainer-word"></h3>
           <p class="trainer-subtitle">${T.choose}</p>
@@ -105,28 +196,7 @@
       </div>`;
   }
 
-  function resolveDeckTitle(key) {
-    const lang = getUiLang();
-    try {
-      if (A.Decks && typeof A.Decks.resolveNameByKeyLang === 'function') return A.Decks.resolveNameByKeyLang(key, lang);
-      if (A.Decks && typeof A.Decks.resolveNameByKey === 'function') {
-        const n = A.Decks.resolveNameByKey(key);
-        if (n && typeof n === 'object') {
-          return (lang === 'uk') ? (n.uk || n.name_uk || n.title_uk || n.name || n.title)
-                                 : (n.ru || n.name_ru || n.title_ru || n.name || n.title);
-        }
-        if (typeof n === 'string') return n;
-      }
-      if (A.Dicts && A.Dicts[key]) {
-        const d = A.Dicts[key];
-        return (lang === 'uk') ? (d.name_uk || d.title_uk || d.uk || d.name || d.title)
-                               : (d.name_ru || d.title_ru || d.ru || d.name || d.title);
-      }
-    } catch (_) {}
-    return (lang === 'uk') ? 'Дієслова' : 'Глаголы';
-  }
-
-  /* ----------------------------- Сеты (зона 1) ----------------------------- */
+  /* ------------------------------- Сеты ------------------------------- */
   function getActiveBatchIndex() {
     try { return (A.Trainer && typeof A.Trainer.getBatchIndex === 'function') ? A.Trainer.getBatchIndex(activeDeckKey()) : 0; }
     catch (_) { return 0; }
@@ -158,9 +228,9 @@
       btn.className = 'set-pill' + (i === activeIdx ? ' is-active' : '') + (done ? ' is-done' : '');
       btn.textContent = i + 1;
       btn.onclick = () => {
-        try { if (A.Trainer && typeof A.Trainer.setBatchIndex === 'function') A.Trainer.setBatchIndex(i, key); } catch (_) {}
+        try { if (A.Trainer && typeof A.Trainer.setBatchIndex === 'function') A.Trainer.setBatchIndex(i, key); } catch (_){}
         renderSets(); renderTrainer();
-        try { A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender(); } catch (_) {}
+        try { A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender(); } catch(_){}
       };
       grid.appendChild(btn);
     }
@@ -168,7 +238,9 @@
     const i = getActiveBatchIndex();
     const from = i * SET_SIZE, to = Math.min(deck.length, (i + 1) * SET_SIZE);
     const words = deck.slice(from, to);
-    const learned = words.filter(w => ((A.state && A.state.stars && A.state.stars[starKey(w.id, key)]) || 0) >= starsMax).length;
+
+    const starsMax2 = (A.Trainer && typeof A.Trainer.starsMax === 'function') ? A.Trainer.starsMax() : 5;
+    const learned = words.filter(w => ((A.state && A.state.stars && A.state.stars[starKey(w.id, key)]) || 0) >= starsMax2).length;
 
     if (statsEl) {
       const uk = getUiLang() === 'uk';
@@ -178,30 +250,36 @@
     }
   }
 
-  /* ---------------------------- Подсказки (зона 2) ---------------------------- */
+  /* ----------------------------- Подсказки ----------------------------- */
   function renderHints(text) {
     const el = document.getElementById('hintsBody');
     if (!el) return;
     el.textContent = text || ' ';
   }
 
-  /* ----------------------------- Тренер (зона 3) ----------------------------- */
+  /* ------------------------------ Звёзды ------------------------------- */
   function getStars(wordId) {
     const key = activeDeckKey();
-    const val = (A.state && A.state.stars && A.state.stars[starKey(wordId, key)]) || 0;
-    return Number(val) || 0;
+    const v = (A.state && A.state.stars && A.state.stars[starKey(wordId, key)]) || 0;
+    return Number(v) || 0; // может быть 0.5, 1.5, ...
   }
 
   function renderStarsFor(word) {
     const box = document.querySelector('.trainer-stars');
     if (!box || !word) return;
     const max  = (A.Trainer && typeof A.Trainer.starsMax === 'function') ? A.Trainer.starsMax() : 5;
-    const have = getStars(word.id);
+    const have = getStars(word.id); // допускаем .5
+
     let html = '';
-    for (let i = 1; i <= max; i++) html += `<span class="star ${i <= have ? 'on' : ''}" aria-hidden="true">★</span>`;
+    for (let i = 1; i <= max; i++) {
+      if (have >= i) html += `<span class="star full" aria-hidden="true">★</span>`;
+      else if (have >= (i - 0.5)) html += `<span class="star half" aria-hidden="true">★</span>`;
+      else html += `<span class="star" aria-hidden="true">★</span>`;
+    }
     box.innerHTML = html;
   }
 
+  /* ------------------------------ Варианты ------------------------------ */
   function buildOptions(word) {
     const key = activeDeckKey();
 
@@ -214,7 +292,7 @@
       : [];
 
     let pool = [];
-    try { if (A.Mistakes && typeof A.Mistakes.getDistractors === 'function') pool = A.Mistakes.getDistractors(key, word.id) || []; } catch (_) {}
+    try { if (A.Mistakes && typeof A.Mistakes.getDistractors === 'function') pool = A.Mistakes.getDistractors(key, word.id) || []; } catch (_){}
     if (pool.length < 3) pool = pool.concat(deck.filter(w => String(w.id) !== String(word.id)));
     const wrongs = shuffle(pool).filter(w => String(w.id) !== String(word.id)).slice(0, 3);
     const opts = shuffle(uniqueById([word, ...wrongs])).slice(0, 4);
@@ -225,6 +303,7 @@
     return shuffle(opts);
   }
 
+  /* ------------------------------- Тренер ------------------------------- */
   function renderTrainer() {
     const key   = activeDeckKey();
     const slice = (A.Trainer && typeof A.Trainer.getDeckSlice === 'function') ? (A.Trainer.getDeckSlice(key) || []) : [];
@@ -241,43 +320,60 @@
     const idkBtn  = document.querySelector('.idk-btn');
     const stats   = document.getElementById('dictStats');
 
-    // --- сердце (как в примере: текст ♡/♥ + scale)
+    // Сердце (текст ♡/♥)
     if (favBtn) {
-      // начальное состояние
       const favNow = isFav(key, word.id);
       favBtn.textContent = favNow ? '♥' : '♡';
-      favBtn.classList.toggle('is-fav', favNow); // допустимо иметь цвет для активного
-
-      // правильные title/aria
+      favBtn.classList.toggle('is-fav', favNow);
+      favBtn.setAttribute('aria-pressed', String(favNow));
       try {
         const uk = getUiLang() === 'uk';
         const title = uk ? 'У вибране' : 'В избранное';
         favBtn.title = title; favBtn.ariaLabel = title;
-      } catch (_) {}
-
-      // обработчик
+      } catch (_){}
       favBtn.onclick = function () {
-        try { toggleFav(key, word.id); } catch (_) {}
+        try { toggleFav(key, word.id); } catch (_){}
         const now = isFav(key, word.id);
         favBtn.textContent = now ? '♥' : '♡';
         favBtn.classList.toggle('is-fav', now);
-        // короткий пульс
+        favBtn.setAttribute('aria-pressed', String(now));
         favBtn.style.transform = 'scale(1.2)';
         setTimeout(() => { favBtn.style.transform = 'scale(1)'; }, 140);
       };
     }
 
-    // слово + звёзды
+    // Слово + звёзды
     wordEl.textContent = word.word || word.term || '';
     renderStarsFor(word);
 
-    // ответы
+    // Ответы
     const opts = buildOptions(word);
     answers.innerHTML = '';
 
     let penalized = false;
     let solved = false;
     const ADV_DELAY = 350;
+
+    function afterAnswer(correct) {
+      // Нормальный режим — оставляем твой движок как есть.
+      // Сложный — принудительно выставляем шаг +/-0.5 независимо от того, что сделал движок внутри.
+      if (getMode() === 'hard') {
+        try {
+          const starsMax = (A.Trainer && typeof A.Trainer.starsMax === 'function') ? A.Trainer.starsMax() : 5;
+          const map = ensureStarsByMode(); // выберет карту по текущему режиму
+          const k = starKey(word.id, key);
+          const prev = Number((map && map[k]) || 0);
+          let next = prev + (correct ? 0.5 : -0.5);
+          if (next < 0) next = 0;
+          if (next > starsMax) next = starsMax;
+          map[k] = next;
+          if (typeof A.saveState === 'function') try { A.saveState(A.state); } catch(_){}
+        } catch (_){}
+      }
+      // Перерисуем звёзды и статистику
+      renderStarsFor(word);
+      try { A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender(); } catch(_){}
+    }
 
     function lockAll(correctId) {
       const btns = answers.querySelectorAll('.answer-btn');
@@ -303,17 +399,14 @@
 
         if (ok) {
           solved = true;
-          try { A.Trainer && A.Trainer.handleAnswer && A.Trainer.handleAnswer(key, word.id, true); } catch (_) {}
+          try { A.Trainer && A.Trainer.handleAnswer && A.Trainer.handleAnswer(key, word.id, true); } catch (_){}
           b.classList.add('is-correct');
           answers.querySelectorAll('.answer-btn').forEach(btn => {
             if (btn !== b) btn.classList.add('is-dim');
             btn.disabled = true;
           });
-          renderStarsFor(word);
-          setTimeout(() => {
-            renderSets(); renderTrainer();
-            try { A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender(); } catch (_) {}
-          }, ADV_DELAY);
+          afterAnswer(true);
+          setTimeout(() => { renderSets(); renderTrainer(); }, ADV_DELAY);
           return;
         }
 
@@ -323,15 +416,15 @@
 
         if (!penalized) {
           penalized = true;
-          try { A.Trainer && A.Trainer.handleAnswer && A.Trainer.handleAnswer(key, word.id, false); } catch (_) {}
+          try { A.Trainer && A.Trainer.handleAnswer && A.Trainer.handleAnswer(key, word.id, false); } catch (_){}
+          // не добавляем в ошибки, если это "колода ошибок"
           try {
             const isMistDeck = !!(A.Mistakes && A.Mistakes.isMistakesDeckKey && A.Mistakes.isMistakesDeckKey(key));
             if (!isMistDeck && A.Mistakes && typeof A.Mistakes.push === 'function') {
               A.Mistakes.push(key, word.id);
             }
-          } catch (_) {}
-          renderStarsFor(word);
-          try { A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender(); } catch (_) {}
+          } catch (_){}
+          afterAnswer(false);
         }
       };
       answers.appendChild(b);
@@ -402,6 +495,9 @@
   }
 
   function mountApp() {
+    ensureStarsByMode();
+    setMode(getMode()); // синхронизируем html и настройки
+    bindLevelToggle();
     bindFooterNav();
     Router.routeTo('home');
   }

@@ -243,6 +243,25 @@
     const answers = document.querySelector('.answers-grid');
     const wordEl  = document.querySelector('.trainer-word');
     const favBtn  = document.querySelector('.fav-toggle');
+    // set initial favorite state and click handler
+    try {
+      if (favBtn && window.App && typeof App.isFavorite==='function' && typeof App.toggleFavorite==='function') {
+        const isFav = !!App.isFavorite(key, word.id);
+        favBtn.classList.toggle('is-fav', isFav);
+        favBtn.addEventListener('click', function(){
+          try {
+            App.toggleFavorite(key, word.id);
+            const nowFav = !!App.isFavorite(key, word.id);
+            favBtn.classList.toggle('is-fav', nowFav);
+            if (nowFav) {
+              favBtn.classList.add('pulse');
+              setTimeout(()=> favBtn.classList.remove('pulse'), 320);
+            }
+          } catch (e) { /* noop */ }
+        }, { once: true });
+      }
+    } catch(_) {}
+
     const stats   = document.getElementById('dictStats');
     const idkBtn  = document.querySelector('.idk-btn');
 

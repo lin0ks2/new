@@ -1045,3 +1045,37 @@ body.modal-open { overflow: hidden;}
 /* Звёзды тренера на месте (если нужно) */
 .trainer-stars .star{ opacity:.45; }
 .trainer-stars .star.on{ opacity:1; }
+
+/* === Trainer stars: размер, золото, анимация === */
+.trainer-stars{ display:flex; gap:4px; align-items:center; }
+
+/* базовый вид */
+.trainer-stars .star{
+  font-size: 22px;              /* было меньше — сделали крупнее */
+  line-height: 1;
+  color: var(--star-muted, #cbd5e1);
+  opacity: .55;
+  transform: translateZ(0);
+  transition: color .22s ease, opacity .22s ease, transform .22s ease, text-shadow .22s ease;
+}
+
+/* активная звезда */
+.trainer-stars .star.on{
+  color: var(--star-gold, #fbbf24);  /* золото */
+  opacity: 1;
+  text-shadow: 0 0 0 rgba(0,0,0,0);
+  animation: star-pop .26s ease;     /* лёгкий поп при появлении */
+}
+
+/* “поп” при появлении */
+@keyframes star-pop{
+  0%   { transform: scale(.88); }
+  60%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+/* уважаем системное “меньше анимаций” */
+@media (prefers-reduced-motion: reduce){
+  .trainer-stars .star.on{ animation: none; }
+}
+

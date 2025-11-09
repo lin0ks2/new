@@ -1256,3 +1256,48 @@ body.modal-open { overflow: hidden;}
 @media (prefers-color-scheme: dark){
   .hints-line{ color: rgba(255,255,255,.85); }
 }
+
+/* === MOYAMOVA modal (light) === */
+.mm-modal-open { overflow: hidden; }
+
+.mm-modal-backdrop{
+  position: fixed; inset: 0; z-index: 2147483646;
+  display: grid; place-items: center;
+  background: rgba(0,0,0,.18);
+  backdrop-filter: blur(2px);
+  opacity: 1; transition: opacity .18s ease;
+}
+.mm-modal-backdrop.hide{ opacity: 0; }
+
+.mm-modal{
+  width: min(92vw, 520px);
+  background: rgba(255,255,255,.98);
+  color: #111;
+  border: 1px solid #e5e8ef;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0,0,0,.12);
+  padding: 20px 18px 14px;
+  transform: translateY(0) scale(1);
+  transition: transform .18s ease;
+  font: 14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial;
+}
+.mm-modal__icon{ font-size: 22px; line-height: 1; margin-bottom: 6px; }
+.mm-modal__title{ font-weight: 700; font-size: 16px; margin: 4px 0 6px; }
+.mm-modal__text{ opacity: .85; margin: 0 0 12px; }
+
+.mm-modal__btns{
+  display: flex; gap: .5rem; justify-content: flex-end;
+}
+.mm-btn{
+  cursor: pointer;
+  border-radius: 12px;
+  padding: .52rem .9rem;
+  border: 1px solid #c7cfdb;
+  background: transparent;
+  color: #111;
+  font: 14px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial;
+}
+.mm-btn:active{ transform: translateY(1px); }
+.mm-btn--primary{
+  background: #111; color: #fff; border-color: #111;
+}

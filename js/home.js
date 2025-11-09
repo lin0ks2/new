@@ -71,19 +71,19 @@
     A.getStarStep = function(){ return (getMode() === 'normal') ? 1 : 0.5; };
   }
 
-  // 👇 мини-тост в "нашем" стиле (пытается использовать существующие, иначе фолбэк)
+  // мини-тост: сначала пробуем твой API, иначе фолбэк (позиция совпадёт с импорт/обновлением)
   function showModeBlockedToast(){
     const uk = getUiLang() === 'uk';
     const msg = uk
       ? 'Завершіть поточний сет, щоб змінити режим.'
       : 'Завершите текущий сет, чтобы сменить режим.';
     try {
-      if (A.UI && typeof A.UI.toast === 'function') { A.UI.toast(msg, { ttl: 3000, center: true }); return; }
+      if (A.UI && typeof A.UI.toast === 'function') { A.UI.toast(msg, { ttl: 3000 }); return; }
       if (A.Toast && typeof A.Toast.show === 'function') { A.Toast.show(msg, { ttl: 3000 }); return; }
       if (typeof window.miniToast === 'function') { window.miniToast(msg, 3000); return; }
       if (typeof window.showToast === 'function') { window.showToast(msg); return; }
     } catch(_) {}
-    // Фолбэк: компактный баннер по центру
+    // Фолбэк (скромный)
     try {
       const el = document.createElement('div');
       el.className = 'mini-toast';
@@ -96,7 +96,6 @@
         font:'13px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Arial',
         opacity:'0', transition:'opacity .18s ease'
       });
-      // light-mode корректировки
       if (matchMedia && matchMedia('(prefers-color-scheme: light)').matches) {
         el.style.background = 'rgba(255,255,255,.98)';
         el.style.color = '#111';
@@ -116,10 +115,10 @@
       const before = getMode();
       const want   = t.checked ? 'hard' : 'normal';
 
-      // Блокировка: если в текущем сете есть прогресс и сет не выучен — запрещаем переключение
+      // Блокировка: сверяемся с фактическим "слайсом" тренера (самый надёжный источник)
       if (before !== want) {
         const key = activeDeckKey();
-        const ids = getCurrentSetWordIds(key);
+        const ids = getCurrentSliceWordIds(key); // ⬅️ заменили вычисление набора
         const anyProgress = hasProgressInSet(key, ids);
         const allDone     = isSetDone(key, ids);
         if (anyProgress && !allDone) {
@@ -156,26 +155,56 @@
     catch (_) { return ACTIVE_KEY_FALLBACK; }
   }
 
-  function tWord(w) {
-    const lang = getUiLang();
-    if (!w) return '';
-    return (lang === 'uk'
-      ? (w.uk || w.translation_uk || w.trans_uk || w.ua)
-      : (w.ru || w.translation_ru || w.trans_ru))
-      || w.translation || w.trans || w.meaning || '';
+  // 👉 ИСПОЛЬЗУЕМ ФАКТИЧЕСКИЙ СЛАЙС ТРЕНЕРА (надёжнее, чем ручной разрез по SET_SIZE)
+  function getCurrentSliceWordIds(key){
+    try {
+      if (A.Trainer && typeof A.Trainer.getDeckSlice === 'function') {
+        const slice = A.Trainer.getDeckSlice(key) || [];
+        const ids = slice.map(w => w && w.id).filter(Boolean);
+        if (ids.length) return ids;
+      }
+    } catch(_){}
+    // фолбэк — расчёт по SET_SIZE (как раньше)
+    return getCurrentSetWordIds(key);
   }
-  function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
-  function uniqueById(arr) { const s = new Set(); return arr.filter(x => { const id = String(x.id); if (s.has(id)) return false; s.add(id); return true; }); }
 
-  /* --------------------------- Избранное (сердце) --------------------------- */
-  function isFav(key, id) {
-    try { if (typeof App.isFavorite === 'function') return !!App.isFavorite(key, id); } catch(_) {}
-    try { if (A.Favorites && typeof A.Favorites.has === 'function') return !!A.Favorites.has(key, id); } catch(_) {}
+  // старый вариант (оставляем как запасной)
+  function getCurrentSetWordIds(key){
+    const deck = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
+      ? (A.Decks.resolveDeckByKey(key) || [])
+      : [];
+    const idx = getActiveBatchIndex();
+    const from = idx * SET_SIZE;
+    const to   = Math.min(deck.length, (idx + 1) * SET_SIZE);
+    return deck.slice(from, to).map(w => w && w.id).filter(Boolean);
+  }
+
+  function getActiveBatchIndex() {
+    try { return (A.Trainer && typeof A.Trainer.getBatchIndex === 'function') ? A.Trainer.getBatchIndex(activeDeckKey()) : 0; }
+    catch (_) { return 0; }
+  }
+
+  // Есть ли в сете ненулевой прогресс
+  function hasProgressInSet(key, ids){
+    if (!ids || !ids.length) return false;
+    const stars = (A.state && A.state.stars) || {};
+    for (let i=0;i<ids.length;i++){
+      const val = Number(stars[starKey(ids[i], key)] || 0);
+      if (val > 0) return true;           // блокируем даже при 0.5
+    }
     return false;
   }
-  function toggleFav(key, id) {
-    try { if (typeof App.toggleFavorite === 'function') return App.toggleFavorite(key, id); } catch(_) {}
-    try { if (A.Favorites && typeof A.Favorites.toggle === 'function') return A.Favorites.toggle(key, id); } catch(_) {}
+
+  // Выучен ли сет (все слова >= starsMax)
+  function isSetDone(key, ids){
+    if (!ids || !ids.length) return false;
+    const stars = (A.state && A.state.stars) || {};
+    const max = (A.Trainer && typeof A.Trainer.starsMax === 'function') ? A.Trainer.starsMax() : 5;
+    for (let i=0;i<ids.length;i++){
+      const val = Number(stars[starKey(ids[i], key)] || 0);
+      if (val < max) return false;
+    }
+    return true;
   }
 
   /* ------------------------- DOM-шаблон главной ------------------------- */
@@ -244,43 +273,6 @@
   }
 
   /* ------------------------------- Сеты ------------------------------- */
-  function getActiveBatchIndex() {
-    try { return (A.Trainer && typeof A.Trainer.getBatchIndex === 'function') ? A.Trainer.getBatchIndex(activeDeckKey()) : 0; }
-    catch (_) { return 0; }
-  }
-
-  // IDs слов текущего сета активного словаря
-  function getCurrentSetWordIds(key){
-    const deck = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
-      ? (A.Decks.resolveDeckByKey(key) || [])
-      : [];
-    const idx = getActiveBatchIndex();
-    const from = idx * SET_SIZE;
-    const to   = Math.min(deck.length, (idx + 1) * SET_SIZE);
-    return deck.slice(from, to).map(w => w && w.id).filter(Boolean);
-  }
-  // Есть ли в сете ненулевой прогресс
-  function hasProgressInSet(key, ids){
-    if (!ids || !ids.length) return false;
-    const stars = (A.state && A.state.stars) || {};
-    for (let i=0;i<ids.length;i++){
-      const val = Number(stars[starKey(ids[i], key)] || 0);
-      if (val > 0) return true;
-    }
-    return false;
-  }
-  // Выучен ли сет (все слова >= starsMax)
-  function isSetDone(key, ids){
-    if (!ids || !ids.length) return false;
-    const stars = (A.state && A.state.stars) || {};
-    const max = (A.Trainer && typeof A.Trainer.starsMax === 'function') ? A.Trainer.starsMax() : 5;
-    for (let i=0;i<ids.length;i++){
-      const val = Number(stars[starKey(ids[i], key)] || 0);
-      if (val < max) return false;
-    }
-    return true;
-  }
-
   function renderSets() {
     const key  = activeDeckKey();
     const deck = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
@@ -336,9 +328,11 @@
     return Number(v) || 0;
   }
 
+  // Двухфазная отрисовка: сначала целые, потом "половинка" наложением
   function drawStarsTwoPhase(box, score, max) {
     if (!box) return;
     const EPS = 1e-6;
+    // Подготовим нужное число элементов
     const kids = box.querySelectorAll('.star');
     if (kids.length !== max) {
       let html = '';
@@ -346,12 +340,14 @@
       box.innerHTML = html;
     }
     const stars = box.querySelectorAll('.star');
+    // Сброс классов
     stars.forEach(el => { el.classList.remove('full','half'); });
 
     const filled = Math.floor(score + EPS);
     for (let i = 0; i < Math.min(filled, max); i++) {
       stars[i].classList.add('full');
     }
+    // половинка на следующей звезде, если есть дробная часть >= 0.5
     const frac = score - filled;
     if (frac + EPS >= 0.5 && filled < max) {
       stars[filled].classList.add('half');
@@ -401,6 +397,7 @@
       : Math.floor(Math.random() * slice.length);
     const word = slice[idx];
 
+    // запомним текущую карточку для мягкой перерисовки звёзд при смене режима
     A.__currentWord = word;
 
     const answers = document.querySelector('.answers-grid');
@@ -409,6 +406,7 @@
     const idkBtn  = document.querySelector('.idk-btn');
     const stats   = document.getElementById('dictStats');
 
+    // Сердце
     if (favBtn) {
       const favNow = isFav(key, word.id);
       favBtn.textContent = favNow ? '♥' : '♡';
@@ -430,9 +428,11 @@
       };
     }
 
+    // Слово + звёзды
     wordEl.textContent = word.word || word.term || '';
     renderStarsFor(word);
 
+    // Ответы
     const opts = buildOptions(word);
     answers.innerHTML = '';
 
@@ -477,6 +477,7 @@
           return;
         }
 
+        // неверно
         b.classList.add('is-wrong');
         b.disabled = true;
 
@@ -517,6 +518,7 @@
     }
   }
 
+  // Мягкая перерисовка звёзд при смене режима (без смены слова/ответов)
   function repaintStarsOnly(){
     try {
       const word = A.__currentWord;
@@ -574,8 +576,9 @@
   }
 
   function mountApp() {
+    // Синхронизация стартовых атрибутов
     document.documentElement.dataset.level = getMode();
-    setUiLang(getUiLang());
+    setUiLang(getUiLang());   // синхронизируем атрибуты и событие языка
 
     bindLangToggle();
     bindLevelToggle();

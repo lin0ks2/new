@@ -653,7 +653,7 @@ html[data-theme="dark"] :where(a,button,[role="button"],input,select,textarea,.b
 .mm-modal-backdrop.hide{ opacity: 0; }
 
 .mm-modal{
-  width: min(92vw, 520px);
+  width: min(92vw, 500px);
   background: rgba(20,30,50,.92);
   color: #fff;
   border: 1px solid rgba(255,255,255,.08);
@@ -683,4 +683,31 @@ html[data-theme="dark"] :where(a,button,[role="button"],input,select,textarea,.b
 .mm-btn:active{ transform: translateY(1px); }
 .mm-btn--primary{
   background: #fff; color: #111; border-color: #fff;
+}
+
+/* Центрируем содержимое модального окна */
+.mm-modal{
+  display:flex !important;         /* перебиваем возможную grid-раскладку */
+  flex-direction:column;
+  align-items:center;              /* по центру по горизонтали */
+  text-align:center;               /* центр текста */
+}
+
+.mm-modal__icon{
+  margin: 0 auto .5rem;            /* иконка по центру */
+}
+
+.mm-modal__title{
+  text-align:center;
+}
+
+.mm-modal__text{
+  text-align:center;
+}
+
+.mm-modal__btns{
+  width:100%;
+  display:flex;
+  justify-content:center;          /* центруем кнопки */
+  gap:.5rem;
 }

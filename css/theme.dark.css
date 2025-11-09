@@ -539,3 +539,25 @@ html[data-theme="dark"] :where(a,button,[role="button"],input,select,textarea,.b
   .idk-btn{ transition: none; }
   .idk-btn::after{ transition: none; }
 }
+
+/* Фокус с клавиатуры — видно, что кнопка активна */
+.idk-btn:focus-visible{
+  outline: 2px solid var(--brand, #35b6ff);
+  outline-offset: 2px;
+}
+
+/* Состояние disabled — риппл и нажатие отключены */
+.idk-btn:disabled{
+  opacity: .5;
+  pointer-events: none;
+}
+
+/* Контрастный режим — риппл чуть сильнее заметен */
+@media (prefers-contrast: more){
+  .idk-btn:active::after{ opacity: .22; }
+}
+
+/* Чуть аккуратнее на тёмной теме (если нужно) */
+@media (prefers-color-scheme: dark){
+  .idk-btn:active::after{ opacity: .18; }
+}

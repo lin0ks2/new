@@ -71,121 +71,68 @@
     A.getStarStep = function(){ return (getMode() === 'normal') ? 1 : 0.5; };
   }
 
-  // Проверка прогресса по текущему словарю
-  function hasProgressInDeck(key){
-    try {
-      const stars = (A.state && A.state.stars) ? A.state.stars : {};
-      const deck = (A.Decks && A.Decks.resolveDeckByKey) ? (A.Decks.resolveDeckByKey(key) || []) : [];
-      for (let i=0; i<deck.length; i++){
-        const id = deck[i] && deck[i].id;
-        if (!id) continue;
-        const v = Number(stars[starKey(id, key)] || 0);
-        if (v > 0) return true;
-      }
-    } catch(_){}
-    return false;
-  }
-
-  // Сброс прогресса только по активному словарю (звёзды)
-  function resetCurrentDeckProgress(key){
-    try {
-      if (!A.state) A.state = {};
-      if (!A.state.stars) A.state.stars = {};
-      const stars = A.state.stars;
-      const deck = (A.Decks && A.Decks.resolveDeckByKey) ? (A.Decks.resolveDeckByKey(key) || []) : [];
-      for (let i=0; i<deck.length; i++){
-        const id = deck[i] && deck[i].id;
-        if (!id) continue;
-        const k = starKey(id, key);
-        if (k in stars) delete stars[k];
-      }
-      // Если активна "Ошибки"-колода — попробуем очистить её своим API
-      try {
-        if (A.Mistakes && typeof A.Mistakes.isMistakesDeckKey === 'function' && A.Mistakes.isMistakesDeckKey(key)) {
-          if (typeof A.Mistakes.resetDeck === 'function') A.Mistakes.resetDeck(key);
-          else if (typeof A.Mistakes.clear === 'function') A.Mistakes.clear(key);
-        }
-      } catch(_){}
-      try { A.saveState && A.saveState(A.state); } catch(_){}
-    } catch(_){}
-  }
-
+  // ✅ Упрощённый и безопасный переключатель сложности
   function bindLevelToggle() {
-  const t = document.getElementById('levelToggle');
-  if (!t) return;
+    const t = document.getElementById('levelToggle');
+    if (!t) return;
 
-  t.checked = (getMode() === 'hard'); // checked => hard
+    t.checked = (getMode() === 'hard'); // checked => hard
 
-  t.addEventListener('change', () => {
-    const before = getMode();
-    const want   = t.checked ? 'hard' : 'normal';
-    if (before === want) return;
+    t.addEventListener('change', () => {
+      const before = getMode();
+      const want   = t.checked ? 'hard' : 'normal';
+      if (before === want) return;
 
-    // ---- проверяем, есть ли прогресс в активном словаре
-    let hasProgress = false;
-    try {
-      const key  = activeDeckKey();
-      const deck = (App.Decks && App.Decks.resolveDeckByKey) ? (App.Decks.resolveDeckByKey(key) || []) : [];
-      const st   = (App.state && App.state.stars) ? App.state.stars : {};
-      for (let i = 0; i < deck.length; i++) {
-        const id = deck[i] && deck[i].id;
-        if (!id) continue;
-        const v = Number(st[`${key}:${id}`] || 0);
-        if (v > 0) { hasProgress = true; break; }
-      }
-    } catch (_) {}
-
-    // ---- если есть прогресс — просим подтверждение и при согласии чистим только текущий словарь
-    if (hasProgress) {
-      const uk  = (getUiLang() === 'uk');
-      const msg = uk
-        ? 'Перемикання режиму очистить прогрес цього словника. Продовжити?'
-        : 'Переключение режима очистит прогресс этого словаря. Продолжить?';
-      if (!window.confirm(msg)) {
-        // откат тумблера
-        t.checked = (before === 'hard');
-        return;
-      }
+      // Проверяем прогресс в активном словаре
+      let hasProgress = false;
       try {
         const key  = activeDeckKey();
-        const deck = (App.Decks && App.Decks.resolveDeckByKey) ? (App.Decks.resolveDeckByKey(key) || []) : [];
-        if (App.state && App.state.stars) {
-          for (let i = 0; i < deck.length; i++) {
-            const id = deck[i] && deck[i].id;
-            if (!id) continue;
-            delete App.state.stars[`${key}:${id}`];
-          }
+        const deck = (A.Decks && A.Decks.resolveDeckByKey) ? (A.Decks.resolveDeckByKey(key) || []) : [];
+        const st   = (A.state && A.state.stars) ? A.state.stars : {};
+        for (let i = 0; i < deck.length; i++) {
+          const id = deck[i] && deck[i].id;
+          if (!id) continue;
+          const v = Number(st[`${key}:${id}`] || 0);
+          if (v > 0) { hasProgress = true; break; }
         }
-        App.saveState && App.saveState(App.state);
       } catch (_) {}
-    }
 
-    // ---- переключаем режим
-    App.settings = App.settings || {};
-    App.settings.level = want;
-    try { App.saveSettings && App.saveSettings(App.settings); } catch (_) {}
-    document.documentElement.dataset.level = want;
+      // Если есть прогресс — подтверждение и при согласии чистим только текущий словарь
+      if (hasProgress) {
+        const uk  = (getUiLang() === 'uk');
+        const msg = uk
+          ? 'Перемикання режиму очистить прогрес цього словника. Продовжити?'
+          : 'Переключение режима очистит прогресс этого словаря. Продолжить?';
+        if (!window.confirm(msg)) {
+          t.checked = (before === 'hard'); // откат тумблера
+          return;
+        }
+        try {
+          const key  = activeDeckKey();
+          const deck = (A.Decks && A.Decks.resolveDeckByKey) ? (A.Decks.resolveDeckByKey(key) || []) : [];
+          if (A.state && A.state.stars) {
+            for (let i = 0; i < deck.length; i++) {
+              const id = deck[i] && deck[i].id;
+              if (!id) continue;
+              delete A.state.stars[`${key}:${id}`];
+            }
+          }
+          A.saveState && A.saveState(A.state);
+        } catch (_) {}
+      }
 
-    // ---- мягкая перерисовка (без полного ремаунта)
-    try {
-      repaintStarsOnly();
-      renderSets();
-      App.Stats && App.Stats.recomputeAndRender && App.Stats.recomputeAndRender();
-    } catch (_) {}
-  });
-}
-      // Переключение режима
+      // Переключаем режим
       A.settings = A.settings || {};
       A.settings.level = want;
-      try { A.saveSettings && A.saveSettings(A.settings); } catch(_){}
+      try { A.saveSettings && A.saveSettings(A.settings); } catch (_) {}
       document.documentElement.dataset.level = want;
 
       // Мягкая перерисовка (без полного ремаунта)
       try {
         repaintStarsOnly();
-        renderSets();            // чтобы обновилась индикация по сетам
+        renderSets();
         A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender();
-      } catch(_){}
+      } catch (_) {}
     });
   }
 

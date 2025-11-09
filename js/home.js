@@ -111,29 +111,69 @@
   }
 
   function bindLevelToggle() {
-    const t = document.getElementById('levelToggle');
-    if (!t) return;
-    t.checked = (getMode() === 'hard'); // checked => hard
-    t.addEventListener('change', () => {
-      const before = getMode();
-      const want   = t.checked ? 'hard' : 'normal';
-      if (before === want) return;
+  const t = document.getElementById('levelToggle');
+  if (!t) return;
 
-      const key = activeDeckKey();
-      const needConfirm = hasProgressInDeck(key);
-      if (needConfirm) {
-        const uk = getUiLang() === 'uk';
-        const msg = uk
-          ? 'Перемикання режиму очистить прогрес цього словника. Продовжити?'
-          : 'Переключение режима очистит прогресс этого словаря. Продолжить?';
-        const ok = window.confirm(msg);
-        if (!ok) {
-          t.checked = (before === 'hard'); // откат тумблера
-          return;
-        }
-        resetCurrentDeckProgress(key);
+  t.checked = (getMode() === 'hard'); // checked => hard
+
+  t.addEventListener('change', () => {
+    const before = getMode();
+    const want   = t.checked ? 'hard' : 'normal';
+    if (before === want) return;
+
+    // ---- проверяем, есть ли прогресс в активном словаре
+    let hasProgress = false;
+    try {
+      const key  = activeDeckKey();
+      const deck = (App.Decks && App.Decks.resolveDeckByKey) ? (App.Decks.resolveDeckByKey(key) || []) : [];
+      const st   = (App.state && App.state.stars) ? App.state.stars : {};
+      for (let i = 0; i < deck.length; i++) {
+        const id = deck[i] && deck[i].id;
+        if (!id) continue;
+        const v = Number(st[`${key}:${id}`] || 0);
+        if (v > 0) { hasProgress = true; break; }
       }
+    } catch (_) {}
 
+    // ---- если есть прогресс — просим подтверждение и при согласии чистим только текущий словарь
+    if (hasProgress) {
+      const uk  = (getUiLang() === 'uk');
+      const msg = uk
+        ? 'Перемикання режиму очистить прогрес цього словника. Продовжити?'
+        : 'Переключение режима очистит прогресс этого словаря. Продолжить?';
+      if (!window.confirm(msg)) {
+        // откат тумблера
+        t.checked = (before === 'hard');
+        return;
+      }
+      try {
+        const key  = activeDeckKey();
+        const deck = (App.Decks && App.Decks.resolveDeckByKey) ? (App.Decks.resolveDeckByKey(key) || []) : [];
+        if (App.state && App.state.stars) {
+          for (let i = 0; i < deck.length; i++) {
+            const id = deck[i] && deck[i].id;
+            if (!id) continue;
+            delete App.state.stars[`${key}:${id}`];
+          }
+        }
+        App.saveState && App.saveState(App.state);
+      } catch (_) {}
+    }
+
+    // ---- переключаем режим
+    App.settings = App.settings || {};
+    App.settings.level = want;
+    try { App.saveSettings && App.saveSettings(App.settings); } catch (_) {}
+    document.documentElement.dataset.level = want;
+
+    // ---- мягкая перерисовка (без полного ремаунта)
+    try {
+      repaintStarsOnly();
+      renderSets();
+      App.Stats && App.Stats.recomputeAndRender && App.Stats.recomputeAndRender();
+    } catch (_) {}
+  });
+}
       // Переключение режима
       A.settings = A.settings || {};
       A.settings.level = want;

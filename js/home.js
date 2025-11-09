@@ -9,6 +9,43 @@
   const ACTIVE_KEY_FALLBACK = 'de_verbs';
   const SET_SIZE = (A.Config && A.Config.setSizeDefault) || 40;
 
+  // inline SVG для сердца
+  const HEART_SVG = ''
+    + '<svg class="icon-heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">'
+    +   '<path class="heart-path" d="M12 21c-.36 0-.72-.13-1-.38l-6.8-6.03C2.2 12.1 1.5 10.1 2 8.2c.5-1.9 2.1-3.4 4-3.8 1.7-.4 3.4.2 4.6 1.4 1.2-1.2 2.9-1.8 4.6-1.4 1.9.4 3.5 1.9 4 3.8.5 1.9-.2 3.9-2.2 5.8L13 20.62c-.28.25-.64.38-1 .38z"/>'
+    + '</svg>';
+
+  // минимальные стили для SVG-иконки (чтобы красилась и анимировалась)
+  function ensureHeartStyles(){
+    if (document.getElementById('heart-style')) return;
+    const st = document.createElement('style');
+    st.id = 'heart-style';
+    st.textContent = [
+      '.home-trainer .fav-toggle{color:var(--fg-muted,#7a869a);transition:color .18s ease}',
+      '.home-trainer .fav-toggle.is-fav{color:var(--brand,#35b6ff)}',
+      '.home-trainer .fav-toggle .icon-heart{display:block;width:22px;height:22px}',
+      '.home-trainer .fav-toggle .heart-path{fill:none;stroke:currentColor;stroke-width:2;opacity:.9;transition:transform .18s ease,fill .18s ease,stroke .18s ease,opacity .18s ease}',
+      '.home-trainer .fav-toggle.is-fav .heart-path{fill:currentColor;stroke:currentColor}',
+      '.home-trainer .fav-toggle.pulse .icon-heart{animation:heart-pulse .32s ease}',
+      '@keyframes heart-pulse{0%{transform:scale(1)}35%{transform:scale(1.12)}100%{transform:scale(1)}}',
+      '@media (prefers-reduced-motion:reduce){.home-trainer .fav-toggle.pulse .icon-heart{animation:none}}'
+    ].join('');
+    document.head.appendChild(st);
+  }
+
+  // универсальные обёртки для избранного (совместим A.Favorites и App.*)
+  function hasFav(key, id){
+    try { if (A.Favorites && typeof A.Favorites.has==='function') return !!A.Favorites.has(key, id); } catch(_){}
+    try { if (typeof A.isFavorite==='function') return !!A.isFavorite(key, id); } catch(_){}
+    try { if (typeof App!=='undefined' && typeof App.isFavorite==='function') return !!App.isFavorite(key, id); } catch(_){}
+    return false;
+  }
+  function toggleFav(key, id){
+    try { if (A.Favorites && typeof A.Favorites.toggle==='function') return A.Favorites.toggle(key, id); } catch(_){}
+    try { if (typeof A.toggleFavorite==='function') return A.toggleFavorite(key, id); } catch(_){}
+    try { if (typeof App!=='undefined' && typeof App.toggleFavorite==='function') return App.toggleFavorite(key, id); } catch(_){}
+  }
+
   function activeDeckKey(){
     try{
       if (A.Trainer && typeof A.Trainer.getDeckKey==='function'){
@@ -102,14 +139,13 @@
             <h2 class="sets-title">${title}</h2>
           </header>
           <div class="sets-viewport" id="setsViewport">
-  <div class="sets-grid" id="setsBar"></div>
-</div>
+            <div class="sets-grid" id="setsBar"></div>
+          </div>
           <p class="sets-stats" id="setStats"></p>
         </section>
 
         <!-- ЗОНА 2: Подсказки -->
         <section class="card home-hints">
-         <!-- <h4 class="hints-title">${T.hints}</h4> -->
           <div class="hints-body" id="hintsBody"></div>
         </section>
 
@@ -117,7 +153,7 @@
         <section class="card home-trainer">
           <div class="trainer-top">
             <div class="trainer-stars" aria-hidden="true"></div>
-            <button class="fav-toggle" title="${T.fav}" aria-label="${T.fav}">🤍</button>
+            <button class="fav-toggle" data-key="${key}" title="${T.fav}" aria-label="${T.fav}">${HEART_SVG}</button>
           </div>
           <h3 class="trainer-word"></h3>
           <p class="trainer-subtitle">${T.choose}</p>
@@ -243,24 +279,42 @@
     const answers = document.querySelector('.answers-grid');
     const wordEl  = document.querySelector('.trainer-word');
     const favBtn  = document.querySelector('.fav-toggle');
-    // set initial favorite state and click handler
-    try {
-      if (favBtn && window.App && typeof App.isFavorite==='function' && typeof App.toggleFavorite==='function') {
-        const isFav = !!App.isFavorite(key, word.id);
-        favBtn.classList.toggle('is-fav', isFav);
-        favBtn.addEventListener('click', function(){
-          try {
-            App.toggleFavorite(key, word.id);
-            const nowFav = !!App.isFavorite(key, word.id);
-            favBtn.classList.toggle('is-fav', nowFav);
-            if (nowFav) {
-              favBtn.classList.add('pulse');
-              setTimeout(()=> favBtn.classList.remove('pulse'), 320);
-            }
-          } catch (e) { /* noop */ }
-        }, { once: true });
+
+    // --- сердце: актуализируем данные и обработчик (единый)
+    if (favBtn){
+      // гарантируем, что внутри SVG (если вдруг остался emoji)
+      if (!favBtn.querySelector('svg.icon-heart')) {
+        favBtn.innerHTML = HEART_SVG;
       }
-    } catch(_) {}
+      // выставим актуальные data-* для текущего слова
+      favBtn.dataset.key = key;
+      favBtn.dataset.id  = String(word.id);
+
+      // начальное состояние
+      try {
+        favBtn.classList.toggle('is-fav', hasFav(key, word.id));
+      } catch(_){}
+
+      // заголовок/aria на правильном языке
+      try {
+        const uk = getUiLang()==='uk';
+        const favTitle = uk ? 'У вибране' : 'В избранное';
+        favBtn.title = favTitle; favBtn.ariaLabel = favTitle;
+      } catch(_){}
+
+      // единый обработчик (не копим слушатели)
+      favBtn.onclick = function(){
+        try {
+          toggleFav(key, word.id);
+          const now = !!hasFav(key, word.id);
+          favBtn.classList.toggle('is-fav', now);
+          if (now) {
+            favBtn.classList.add('pulse');
+            setTimeout(()=> favBtn.classList.remove('pulse'), 320);
+          }
+        } catch(_){}
+      };
+    }
 
     const stats   = document.getElementById('dictStats');
     const idkBtn  = document.querySelector('.idk-btn');
@@ -355,20 +409,6 @@
       };
     }
 
-    try {
-      const has = A.Favorites && typeof A.Favorites.has==='function' && A.Favorites.has(key, word.id);
-      if (favBtn) {
-        const uk = getUiLang()==='uk';
-        const favTitle = uk ? 'У вибране' : 'В избранное';
-        favBtn.title = favTitle; favBtn.ariaLabel = favTitle;
-        favBtn.classList.toggle('is-fav', !!has);
-        favBtn.onclick = ()=>{
-          try { A.Favorites && typeof A.Favorites.toggle==='function' && A.Favorites.toggle(key, word.id); } catch(_){}
-          favBtn.classList.toggle('is-fav');
-        };
-      }
-    } catch(_){}
-
     const full = (A.Decks && typeof A.Decks.resolveDeckByKey==='function') ? (A.Decks.resolveDeckByKey(key) || []) : [];
     const starsMax = (A.Trainer && typeof A.Trainer.starsMax==='function') ? A.Trainer.starsMax() : 5;
     const learned = full.filter(w => ((A.state && A.state.stars && A.state.stars[starKey(w.id,key)])||0) >= starsMax).length;
@@ -424,6 +464,7 @@
 
   /* ------------------------------- Экспорт ------------------------------ */
   function mountApp(){
+    ensureHeartStyles();
     bindLangToggle();
     bindFooterNav();
     Router.routeTo('home');

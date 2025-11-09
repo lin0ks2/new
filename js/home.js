@@ -1,4 +1,3 @@
-
 /* ==========================================================
  * home.js — Главная (двухфазная отрисовка звёзд + мягкий переключатель сложности)
  *  - setUiLang(): dataset.lang + html@lang + save + event
@@ -392,6 +391,7 @@
         if (ok) {
           solved = true;
           try { A.Trainer && A.Trainer.handleAnswer && A.Trainer.handleAnswer(key, word.id, true); } catch (_){}
+          try { renderStarsFor(word); } catch(_){}
           b.classList.add('is-correct');
           answers.querySelectorAll('.answer-btn').forEach(btn => {
             if (btn !== b) btn.classList.add('is-dim');
@@ -409,6 +409,7 @@
         if (!penalized) {
           penalized = true;
           try { A.Trainer && A.Trainer.handleAnswer && A.Trainer.handleAnswer(key, word.id, false); } catch (_){}
+          try { renderStarsFor(word); } catch(_){}
           try {
             const isMistDeck = !!(A.Mistakes && A.Mistakes.isMistakesDeckKey && A.Mistakes.isMistakesDeckKey(key));
             if (!isMistDeck && A.Mistakes && typeof A.Mistakes.push === 'function') {

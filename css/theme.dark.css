@@ -401,7 +401,7 @@ html[data-theme="dark"] :where(a,button,[role="button"],input,select,textarea,.b
   outline: none;
 }
 
-/* Центрируем баннер согласия */
+/* Центрируем баннер согласия
 #ga-banner {
   left: 50% !important;
   right: auto !important;
@@ -410,3 +410,4 @@ html[data-theme="dark"] :where(a,button,[role="button"],input,select,textarea,.b
   transform: translate(-50%, -50%) !important;
   width: min(92vw, 680px) !important;
 }
+*/

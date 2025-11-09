@@ -606,6 +606,9 @@ html[data-theme="dark"] :where(a,button,[role="button"],input,select,textarea,.b
   .trainer-stars .star.full{ animation: none; }
 }
 
+/* поддержка половинок: базовый символ + наложение левой половины золотом */
+.trainer-stars .star { position: relative; line-height: 1; }
+
 /* === Зона 2: строка-индикатор режима === */
 .home-hints { position: relative; }
 .home-hints .hints-body{

@@ -561,3 +561,47 @@ html[data-theme="dark"] :where(a,button,[role="button"],input,select,textarea,.b
 @media (prefers-color-scheme: dark){
   .idk-btn:active::after{ opacity: .18; }
 }
+
+/* === Половинные звёзды (визуал для 0.5 шага) === */
+.trainer-stars{ display:flex; gap:4px; align-items:center; }
+
+/* базовый вид */
+.trainer-stars .star{
+  position: relative;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--star-muted, #cbd5e1);
+  opacity: .55;
+  transition: color .22s ease, opacity .22s ease, transform .22s ease;
+}
+
+/* полная звезда */
+.trainer-stars .star.full{
+  color: var(--star-gold, #fbbf24);
+  opacity: 1;
+  animation: star-pop .22s ease;
+}
+
+/* половинка: базовый символ бледный, сверху золотая половина */
+.trainer-stars .star.half{
+  color: var(--star-muted, #cbd5e1);
+  opacity: 1;
+}
+.trainer-stars .star.half::before{
+  content: '★';
+  position: absolute;
+  left: 0; top: 0;
+  width: 50%; height: 100%;
+  overflow: hidden;
+  color: var(--star-gold, #fbbf24);
+}
+
+/* лёгкий поп-эффект */
+@keyframes star-pop{
+  0%{ transform: scale(.88) }
+  60%{ transform: scale(1.18) }
+  100%{ transform: scale(1) }
+}
+@media (prefers-reduced-motion: reduce){
+  .trainer-stars .star.full{ animation: none; }
+}

@@ -400,3 +400,13 @@ html[data-theme="dark"] :where(a,button,[role="button"],input,select,textarea,.b
 html[data-theme="dark"] :where(a,button,[role="button"],input,select,textarea,.btn,.answer-btn):focus{
   outline: none;
 }
+
+/* Центрируем баннер согласия */
+#ga-banner {
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: min(92vw, 680px) !important;
+}

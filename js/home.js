@@ -428,6 +428,19 @@
         favBtn.title = title; favBtn.ariaLabel = title;
       } catch (_){}
       favBtn.onclick = function () {
+        
+        // Guard: block adding to favorites while training favorites deck
+        try {
+          var __curKey = String(key||'');
+          var isFavoritesDeck = (__curKey.indexOf('favorites:')===0) || (__curKey==='fav') || (__curKey==='favorites');
+          if (isFavoritesDeck) {
+            var uk = (getUiLang && getUiLang()==='uk');
+            var msg = uk ? 'Під час тренування обраного додавання заборонено' : 'Во время тренировки избранного добавление запрещено';
+            try { (A.toast&&A.toast.show) ? A.toast.show(msg) : alert(msg); } catch(__e){}
+            favBtn.classList.add('shake'); setTimeout(function(){ favBtn.classList.remove('shake'); }, 300);
+            return;
+          }
+        } catch(__e) {}
         try { toggleFav(key, word.id); } catch (_){}
         const now = isFav(key, word.id);
         favBtn.textContent = now ? '♥' : '♡';

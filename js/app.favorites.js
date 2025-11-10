@@ -207,6 +207,86 @@
   }
 })();
 
+
+
+/* === Extended Favorites API (summary, clear per deck, resolve virtual key) === */
+(function(){
+  'use strict';
+  var A = window.App || (window.App = {});
+  A.Favorites = A.Favorites || {};
+
+  function _getTrainLang(){
+    try{
+      var s = (A.settings && (A.settings.lang || A.settings.uiLang)) || 'ru';
+      s = String(s).toLowerCase(); return (s === 'uk') ? 'uk' : 'ru';
+    }catch(_){ return 'ru'; }
+  }
+
+  // Build summary by base decks: [{ baseDeckKey, count }]
+  if (typeof A.Favorites.listSummary !== 'function'){
+    A.Favorites.listSummary = function(){
+      try{
+        var out = [];
+        var keys = (A.Decks && A.Decks.builtinKeys) ? (A.Decks.builtinKeys() || []) : [];
+        for (var i=0;i<keys.length;i++){
+          var k = keys[i];
+          var deck = (A.Decks && A.Decks.resolveDeckByKey) ? (A.Decks.resolveDeckByKey(k) || []) : [];
+          var cnt = 0;
+          for (var j=0;j<deck.length;j++){
+            var w = deck[j];
+            if (A.Favorites.has && A.Favorites.has(k, w.id)) cnt++;
+          }
+          if (cnt>0) out.push({ baseDeckKey:k, count:cnt });
+        }
+        return out;
+      }catch(_){ return []; }
+    };
+  }
+
+  // Clear favorites for one base deck
+  if (typeof A.Favorites.clearForDeck !== 'function'){
+    A.Favorites.clearForDeck = function(baseDeckKey){
+      try{
+        var st = A.state || (A.state = {});
+        st.favorites_v2 = st.favorites_v2 || {};
+        if (st.favorites_v2[baseDeckKey]) {
+          delete st.favorites_v2[baseDeckKey];
+          if (A.saveState) try{ A.saveState(); }catch(_){}
+          try{ document.dispatchEvent(new CustomEvent('favorites:changed')); }catch(_){}
+        }
+      }catch(_){}
+    };
+  }
+
+  // Parse favorites virtual key: favorites:<trainLang>:<baseDeckKey>
+  function _parseFavoritesKey(key){
+    var m = String(key||'').match(/^favorites:(ru|uk):([\w.-]+)$/i);
+    return m ? { kind:'favorites', trainLang:m[1].toLowerCase(), baseDeckKey:m[2] } : null;
+  }
+
+  // Resolve deck array for a favorites virtual key
+  if (typeof A.Favorites.resolveDeckForFavoritesKey !== 'function'){
+    A.Favorites.resolveDeckForFavoritesKey = function(key){
+      try{
+        var p = _parseFavoritesKey(key);
+        if (!p) return [];
+        var full = (A.Decks && A.Decks.resolveDeckByKey) ? (A.Decks.resolveDeckByKey(p.baseDeckKey) || []) : [];
+        var out = [];
+        for (var i=0;i<full.length;i++){
+          var w = full[i];
+          if (A.Favorites.has && A.Favorites.has(p.baseDeckKey, w.id)) out.push(w);
+        }
+        return out;
+      }catch(_){ return []; }
+    };
+  }
+
+  if (typeof A.Favorites.isFavoritesDeckKey !== 'function'){
+    A.Favorites.isFavoritesDeckKey = function(key){ return /^favorites:(ru|uk):/i.test(String(key||'')); };
+  }
+
+})();
+
 /* ====================== End of file =======================
  * File: app.favorites.js • Version: 1.0 • 2025-10-19
 */

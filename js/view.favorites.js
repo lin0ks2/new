@@ -91,22 +91,80 @@
     const t = T();
 
     const all = listFavoriteDecks();
-    if (!all.length){
+    
+    // === favorites: language grouping & active flag (like mistakes) ===
+    const byLang = all.reduce((acc, row)=>{
+      const lg = row.baseLang || 'xx';
+      (acc[lg] || (acc[lg]=[])).push(row);
+      return acc;
+    }, {});
+    const langs = Object.keys(byLang);
+
+    // active language: load from settings or default to first
+    let activeLang = (function(){
+      try { return (A.settings && A.settings.favoritesLang) || langs[0] || null; } catch(_) { return langs[0] || null; }
+    })();
+    if (!activeLang || !byLang[activeLang]) activeLang = langs[0] || null;
+
+    const list = activeLang ? byLang[activeLang] : all;
+if (!all.length){
       app.innerHTML = `<div class="home"><section class="card dicts-card"><h3 style="margin:0 0 6px;">${t.title}</h3>
 <div class="dicts-flags" id="favorites-flags"></div><p style="opacity:.7; margin:0;">${t.empty}</p></section></div>`;
+    // draw flags identical to mistakes
+    (function renderFlags(){
+      try{
+        const wrap = document.getElementById('favorites-flags');
+        if (!wrap) return;
+        wrap.innerHTML = (langs.length ? langs : ['xx']).map((lg)=>{
+          // peek a baseDeckKey for this language to draw its flag
+          const sample = (byLang[lg] && byLang[lg][0]) || null;
+          const flag = sample ? flagForKey(sample.baseDeckKey) : '🏳️';
+          const isActive = (lg === activeLang);
+          return `<button type="button" class="dict-flag${isActive?' active':''}" data-lang="${lg}" aria-pressed="${isActive?'true':'false'}">${flag}</button>`;
+        }).join('');
+        wrap.querySelectorAll('.dict-flag').forEach(btn=>{
+          btn.addEventListener('click', ()=>{
+            const lg = btn.getAttribute('data-lang');
+            try { (A.settings || (A.settings={})).favoritesLang = lg; } catch(_){}
+            // re-render full view
+            render();
+          });
+        });
+      }catch(_){}
+    })();
+
+    // restore last selected dictionary
+    (function restoreSelection(){
+      try{
+        const lastKey = (A.settings && A.settings.lastFavoritesKey) || null;
+        const rows = Array.from(document.querySelectorAll('tr.dict-row'));
+        let set = false;
+        if (lastKey){
+          const tr = rows.find(r => r.getAttribute('data-key') === lastKey);
+          if (tr){
+            tr.classList.add('is-selected');
+            set = true;
+          }
+        }
+        if (!set && rows.length){
+          rows[0].classList.add('is-selected');
+        }
+      }catch(_){}
+    })();
+
       return;
     }
 
-    const headerFlag = flagForKey(all[0].baseDeckKey);
+    const headerFlag = list.length ? flagForKey(list[0].baseDeckKey) : '';
 
-    const body = all.map(item=>{
+    const body = list.map(item=>{
       const flag = flagForKey(item.baseDeckKey);
       const name = resolveNameByKey(item.baseDeckKey);
       const disabled = (item.count < 4) ? ' data-disabled="1" aria-disabled="true"' : '';
       return `<tr class="dict-row" data-key="${item.favoritesKey}"${disabled}>
         <td class="c-flag">${flag}</td>
-        <td class="c-name">${name}</td>
-        <td class="c-count">${item.count}</td>
+        <td >${name}</td>
+        <td class="t-center">${item.count}</td>
         <td class="t-center">
           <span class="mistakes-preview" title="Предпросмотр" aria-label="Предпросмотр">👁️</span>
           <span class="mistakes-delete" title="Удалить" aria-label="Удалить" style="margin-left:10px;">🗑️</span>
@@ -151,6 +209,7 @@
         if (tgt && (tgt.closest('.mistakes-preview') || tgt.closest('.mistakes-delete'))) return;
         selectedKey = tr.getAttribute('data-key');
         app.querySelectorAll('tr.dict-row').forEach(x=>x.classList.toggle('is-selected', x===tr));
+        try { (A.settings || (A.settings={})).lastFavoritesKey = selectedKey; } catch(_){}
         updateOk();
       });
     });

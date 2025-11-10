@@ -15,15 +15,13 @@
     const uk = getUiLang()==='uk';
     return uk ? {
       title:'Обране',
-      sub:'Словники з обраними словами',
-      empty:'Немає обраних слів',
+            empty:'Немає обраних слів',
       ok:'Ok',
       preview:'Перегляд',
       remove:'Очистити'
     } : {
       title:'Избранное',
-      sub:'Словари с избранными словами',
-      empty:'Нет избранных слов',
+            empty:'Нет избранных слов',
       ok:'Ok',
       preview:'Предпросмотр',
       remove:'Очистить'
@@ -32,7 +30,7 @@
 
   function favoritesKeyFor(baseDeckKey){ return 'favorites:' + getUiLang() + ':' + baseDeckKey; }
   function resolveNameByKey(key){ try{ return (A.Decks && A.Decks.resolveNameByKey) ? A.Decks.resolveNameByKey(key) : String(key); }catch(_){ return String(key); } }
-  function flagForKey(key){ try{ return (A.Decks && A.Decks.flagForKey) ? (A.Decks.flagForKey(key) || '🏳️') : '🏳️'; }catch(_){ return '🏳️'; } }
+  function flagForKey(key){ try{ return (A.Decks && A.Decks.flagForKey) ? (A.Decks.flagForKey(key) || '') : ''; }catch(_){ return '🏳️'; } }
 
   function listFavoriteDecks(){
     try{
@@ -71,10 +69,12 @@
       <div class="mmodal__panel" role="dialog" aria-modal="true">
         <button class="mmodal__close" aria-label="Close">×</button>
         <div class="mmodal__body">
-          <h3 style="margin-top:0">${t.preview}</h3>
-<div class="dicts-flags" id="favorites-flags"></div>
+          <div class="dicts-header">
+  <h3 style="margin-top:0">${t.preview}</h3>
+  <div id="favorites-flags" class="dicts-flags"></div>
+</div>
           <table class="dicts-table">
-            <!-- thead removed to match mistakes visuals -->
+            
             <tbody>${rows || `<tr><td colspan="3" style="opacity:.6">${t.empty}</td></tr>`}</tbody>
           </table>
         </div>
@@ -92,7 +92,7 @@
 
     const all = listFavoriteDecks();
     
-    // === favorites: language grouping & active flag (like mistakes) ===
+    // Group by base language (same as mistakes)
     const byLang = all.reduce((acc, row)=>{
       const lg = row.baseLang || 'xx';
       (acc[lg] || (acc[lg]=[])).push(row);
@@ -100,40 +100,36 @@
     }, {});
     const langs = Object.keys(byLang);
 
-    // active language: load from settings or default to first
+    // Active language: load from settings, else first
     let activeLang = (function(){
       try { return (A.settings && A.settings.favoritesLang) || langs[0] || null; } catch(_) { return langs[0] || null; }
     })();
     if (!activeLang || !byLang[activeLang]) activeLang = langs[0] || null;
-
     const list = activeLang ? byLang[activeLang] : all;
-if (!all.length){
-      app.innerHTML = `<div class="home"><section class="card dicts-card"><h3 style="margin:0 0 6px;">${t.title}</h3>
-<div class="dicts-flags" id="favorites-flags"></div><p style="opacity:.7; margin:0;">${t.empty}</p></section></div>`;
-    // draw flags identical to mistakes
+    if (!all.length){ app.innerHTML = `<div class='home'><section class='card dicts-card'><h3 style='margin:0 0 6px;'>${t.title}</h3><p style='opacity:.7; margin:0;'>${t.empty}</p></section></div>`;
+    // Render language flags (visual + filtering) identical to mistakes
     (function renderFlags(){
       try{
         const wrap = document.getElementById('favorites-flags');
         if (!wrap) return;
-        wrap.innerHTML = (langs.length ? langs : ['xx']).map((lg)=>{
-          // peek a baseDeckKey for this language to draw its flag
+        wrap.innerHTML = (langs.length ? langs : []).map((lg)=>{
           const sample = (byLang[lg] && byLang[lg][0]) || null;
-          const flag = sample ? flagForKey(sample.baseDeckKey) : '🏳️';
+          if (!sample) return '';
+          const f = flagForKey(sample.baseDeckKey);
           const isActive = (lg === activeLang);
-          return `<button type="button" class="dict-flag${isActive?' active':''}" data-lang="${lg}" aria-pressed="${isActive?'true':'false'}">${flag}</button>`;
+          return `<button type="button" class="dict-flag${isActive?' active':''}" data-lang="${lg}" aria-pressed="${isActive?'true':'false'}">${f}</button>`;
         }).join('');
         wrap.querySelectorAll('.dict-flag').forEach(btn=>{
           btn.addEventListener('click', ()=>{
             const lg = btn.getAttribute('data-lang');
             try { (A.settings || (A.settings={})).favoritesLang = lg; } catch(_){}
-            // re-render full view
             render();
           });
         });
       }catch(_){}
     })();
 
-    // restore last selected dictionary
+    // Restore last selected favorites row (and persist on click)
     (function restoreSelection(){
       try{
         const lastKey = (A.settings && A.settings.lastFavoritesKey) || null;
@@ -141,21 +137,14 @@ if (!all.length){
         let set = false;
         if (lastKey){
           const tr = rows.find(r => r.getAttribute('data-key') === lastKey);
-          if (tr){
-            tr.classList.add('is-selected');
-            set = true;
-          }
+          if (tr){ tr.classList.add('is-selected'); set = true; }
         }
-        if (!set && rows.length){
-          rows[0].classList.add('is-selected');
-        }
+        if (!set && rows.length){ rows[0].classList.add('is-selected'); }
       }catch(_){}
     })();
+     return; }
 
-      return;
-    }
-
-    const headerFlag = list.length ? flagForKey(list[0].baseDeckKey) : '';
+    
 
     const body = list.map(item=>{
       const flag = flagForKey(item.baseDeckKey);
@@ -163,7 +152,7 @@ if (!all.length){
       const disabled = (item.count < 4) ? ' data-disabled="1" aria-disabled="true"' : '';
       return `<tr class="dict-row" data-key="${item.favoritesKey}"${disabled}>
         <td class="c-flag">${flag}</td>
-        <td >${name}</td>
+        <td class="c-name">${name}</td>
         <td class="t-center">${item.count}</td>
         <td class="t-center">
           <span class="mistakes-preview" title="Предпросмотр" aria-label="Предпросмотр">👁️</span>
@@ -177,12 +166,11 @@ if (!all.length){
         <section class="card dicts-card">
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <h3 style="margin:0 0 6px;">${t.title}</h3>
-<div class="dicts-flags" id="favorites-flags"></div>
           </div>
           <div class="dicts">
             <div class="dicts-table-wrap">
               <table class="dicts-table">
-                <!-- thead removed to match mistakes visuals -->
+                
                 <tbody>${body}</tbody>
               </table>
             </div>
@@ -195,7 +183,7 @@ if (!all.length){
 
     let selectedKey = null;
     function updateOk(){
-      const el = document.getElementById('favOk');
+      const el = document.getElementById('favorites-apply');
       if (!el) return;
       if (!selectedKey){ el.disabled = true; return; }
       const row = app.querySelector('tr.dict-row.is-selected') || app.querySelector(`tr.dict-row[data-key="${selectedKey}"]`);
@@ -234,7 +222,7 @@ if (!all.length){
       });
     });
 
-    const ok = document.getElementById('favOk');
+    const ok = document.getElementById('favorites-apply');
     if (ok){
       ok.addEventListener('click', ()=>{
         if (!selectedKey) return;

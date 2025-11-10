@@ -1,7 +1,7 @@
 /* ==========================================================
  * home.js — Главная (глобальный режим + кастомный confirm + очистка ТЕКУЩЕГО СЕТА)
  *  - Режим сложности один на всё приложение (A.settings.level)
- *  - При переключении: кастомный диалог → при согласии очистка ТЕКУЩЕГО СЕТА → запись режима → мягкая перерисовка
+ *  - При переключении: кастомный диалог → при согласии очистка ТЕКУЩЕГО СЕТА → запись режима → мягкий ремоунт
  *  - Звёзды: двухфазный рендер (сначала целые, потом половинка наложением)
  * ========================================================== */
 (function () {
@@ -64,20 +64,19 @@
     const dl = (document.documentElement.dataset.level || '').toLowerCase();
     return dl === 'hard' ? 'hard' : 'normal';
   }
+  if (typeof A.getMode !== 'function') {
+    A.getMode = function(){ return getMode(); };
+  }
+  if (typeof A.getStarStep !== 'function') {
+    A.getStarStep = function(){ return (getMode() === 'normal') ? 1 : 0.5; };
+  }
 
-  // Жёстко задаём шаг звёзд, чтобы перебить любые легаси-настройки
-  A.getMode = function(){ return getMode(); };
-  A.getStarStep = function(){ return (getMode() === 'normal') ? 1 : 0.5; };
-  A.Config = A.Config || {};
-  A.Config.starStep = function(){ return A.getStarStep(); };
-  delete A.Config.STAR_STEP;
-
-  // Кастомный диалог подтверждения
+  /* ---------------------- Кастомный диалог подтверждения ---------------------- */
   function i18nConfirmTexts() {
     const uk = getUiLang() === 'uk';
     return uk
       ? { title:'Змінити режим?', textSet:'Перемикання режиму очистить прогрес поточного набору.', cancel:'Скасувати', ok:'Продовжити' }
-      : { title:'Сменить режим?', textSet:'Переключение режима очистит прогресс этого набора.', cancel:'Отмена', ok:'Продолжить' };
+      : { title:'Сменить режим?', textSet:'Переключение режима очистит прогресс текущего набора.', cancel:'Отмена', ok:'Продолжить' };
   }
   function confirmModeChangeSet() {
     const T = i18nConfirmTexts();
@@ -115,80 +114,6 @@
     });
   }
 
-  /* ---------- вспомогательно: собрать кандидатов для проверки прогресса ---------- */
-  function collectCandidateIdsForProgress(key){
-    const ids = new Set();
-
-    // 1) текущая карточка (самый надёжный индикатор «мы уже отвечали здесь»)
-    try { if (A.__currentWord && A.__currentWord.id) ids.add(String(A.__currentWord.id)); } catch(_){}
-
-    // 2) фактический слайс тренера
-    try {
-      if (A.Trainer && typeof A.Trainer.getDeckSlice === 'function') {
-        const slice = A.Trainer.getDeckSlice(key) || [];
-        slice.forEach(w => { if (w && w.id) ids.add(String(w.id)); });
-      }
-    } catch(_){}
-
-    // 3) расчётный сет по SET_SIZE + batchIndex
-    try { getCurrentSetWordIds(key).forEach(id => ids.add(String(id))); } catch(_){}
-
-    return Array.from(ids);
-  }
-
-  // Переключатель сложности: глобальный + очистка ТЕКУЩЕГО СЕТА
-  function bindLevelToggle() {
-    const t = document.getElementById('levelToggle');
-    if (!t) return;
-
-    t.checked = (getMode() === 'hard'); // checked => hard
-
-    t.addEventListener('change', async () => {
-      const before = getMode();
-      const want   = t.checked ? 'hard' : 'normal';
-      if (before === want) return;
-
-      // Есть ли прогресс? (объединяем текущую карточку, слайс тренера и расчётный сет)
-      let hasProgress = false;
-      try {
-        const key = activeDeckKey();
-        const candIds = collectCandidateIdsForProgress(key);
-        const st  = (A.state && A.state.stars) ? A.state.stars : {};
-        for (let i = 0; i < candIds.length; i++) {
-          if (Number(st[starKey(candIds[i], key)] || 0) > 0) { hasProgress = true; break; }
-        }
-      } catch (_) {}
-
-      if (hasProgress) {
-        const ok = await confirmModeChangeSet();
-        if (!ok) { t.checked = (before === 'hard'); return; }
-        // Очистка ТЕКУЩЕГО СЕТА (по визуальной логике набора)
-        try {
-          const key = activeDeckKey();
-          const ids = getCurrentSetWordIds(key);
-          if (A.state && A.state.stars) {
-            ids.forEach(id => { delete A.state.stars[starKey(id, key)]; });
-            A.saveState && A.saveState(A.state);
-          }
-        } catch(_){}
-      }
-
-      // Переключаем режим (глобально)
-      A.settings = A.settings || {};
-      A.settings.level = want;
-      try { A.saveSettings && A.saveSettings(A.settings); } catch(_){}
-      document.documentElement.dataset.level = want;
-      try { window.dispatchEvent(new Event('mm:mode-changed')); } catch(_){}
-
-      // Мягкая перерисовка
-      try {
-        repaintStarsOnly();
-        renderSets();
-        A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender();
-      } catch(_){}
-    });
-  }
-
   /* ------------------------------ Утилиты ------------------------------ */
   const starKey = (typeof A.starKey === 'function') ? A.starKey : (id, key) => `${key}:${id}`;
 
@@ -202,27 +127,50 @@
     catch (_) { return ACTIVE_KEY_FALLBACK; }
   }
 
-  // Индекс активного набора по словарю
-  function getActiveBatchIndex(keyParam){
-    try {
-      if (A.Trainer && typeof A.Trainer.getBatchIndex === 'function') {
-        return A.Trainer.getBatchIndex(keyParam || activeDeckKey()) || 0;
-      }
-    } catch(_) {}
-    return 0;
+  function getActiveBatchIndex() {
+    try { return (A.Trainer && typeof A.Trainer.getBatchIndex === 'function') ? A.Trainer.getBatchIndex(activeDeckKey()) : 0; }
+    catch (_) { return 0; }
   }
-
-  // ТЕКУЩИЙ СЕТ по SET_SIZE (визуальная логика)
-  function getCurrentSetWordIds(key){
+  function getCurrentSliceWordIds(key){
+    try {
+      if (A.Trainer && typeof A.Trainer.getDeckSlice === 'function') {
+        const slice = A.Trainer.getDeckSlice(key) || [];
+        const ids = slice.map(w => w && w.id).filter(Boolean);
+        if (ids.length) return ids;
+      }
+    } catch(_){}
     const deck = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
       ? (A.Decks.resolveDeckByKey(key) || [])
       : [];
-    const idx  = getActiveBatchIndex(key);
+    const idx  = getActiveBatchIndex();
     const from = idx * SET_SIZE;
     const to   = Math.min(deck.length, (idx + 1) * SET_SIZE);
     return deck.slice(from, to).map(w => w && w.id).filter(Boolean);
   }
 
+  /* --- Надёжная проверка прогресса: текущая карточка → слайс → расчётный сет --- */
+  function getStars(wordId) {
+    const key = activeDeckKey();
+    const v = (A.state && A.state.stars && A.state.stars[starKey(wordId, key)]) || 0;
+    return Number(v) || 0;
+  }
+  function hasProgressNow() {
+    try {
+      // 1) Текущая карточка (самый точный индикатор «прямо сейчас»)
+      if (A.__currentWord && A.__currentWord.id != null) {
+        if (getStars(A.__currentWord.id) > 0) return true;
+      }
+      // 2) Фактический слайс тренера
+      const key = activeDeckKey();
+      const ids = getCurrentSliceWordIds(key);
+      for (let i = 0; i < ids.length; i++) {
+        if (getStars(ids[i]) > 0) return true;
+      }
+    } catch(_) {}
+    return false;
+  }
+
+  /* ------------------------- DOM-шаблон главной ------------------------- */
   function tWord(w) {
     const lang = getUiLang();
     if (!w) return '';
@@ -234,7 +182,6 @@
   function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
   function uniqueById(arr) { const s = new Set(); return arr.filter(x => { const id = String(x.id); if (s.has(id)) return false; s.add(id); return true; }); }
 
-  /* --------------------------- Избранное (сердце) --------------------------- */
   function isFav(key, id) {
     try { if (typeof App.isFavorite === 'function') return !!App.isFavorite(key, id); } catch(_) {}
     try { if (A.Favorites && typeof A.Favorites.has === 'function') return !!A.Favorites.has(key, id); } catch(_) {}
@@ -245,7 +192,6 @@
     try { if (A.Favorites && typeof A.Favorites.toggle === 'function') return A.Favorites.toggle(key, id); } catch(_) {}
   }
 
-  /* ------------------------- DOM-шаблон главной ------------------------- */
   function resolveDeckTitle(key) {
     const lang = getUiLang();
     try {
@@ -322,7 +268,7 @@
     if (!grid) return;
 
     const totalSets = Math.ceil(deck.length / SET_SIZE);
-    const activeIdx = getActiveBatchIndex(key);
+    const activeIdx = getActiveBatchIndex();
     grid.innerHTML = '';
 
     const starsMax = (A.Trainer && typeof A.Trainer.starsMax === 'function') ? A.Trainer.starsMax() : 5;
@@ -344,7 +290,7 @@
       grid.appendChild(btn);
     }
 
-    const i = getActiveBatchIndex(key);
+    const i = getActiveBatchIndex();
     const from = i * SET_SIZE, to = Math.min(deck.length, (i + 1) * SET_SIZE);
     const words = deck.slice(from, to);
 
@@ -360,13 +306,8 @@
   }
 
   /* ------------------------------ Звёзды ------------------------------- */
-  function getStars(wordId) {
-    const key = activeDeckKey();
-    const v = (A.state && A.state.stars && A.state.stars[starKey(wordId, key)]) || 0;
-    return Number(v) || 0;
-  }
+  // (getStars выше)
 
-  // Двухфазная отрисовка: сначала целые, потом "половинка" наложением
   function drawStarsTwoPhase(box, score, max) {
     if (!box) return;
     const EPS = 1e-6;
@@ -560,6 +501,59 @@
       const have = getStars(word.id);
       drawStarsTwoPhase(box, have, max);
     } catch(_){}
+  }
+
+  /* ---------------------------- Переключатель уровня ---------------------------- */
+  function bindLevelToggle() {
+    const t = document.getElementById('levelToggle');
+    if (!t) return;
+
+    t.checked = (getMode() === 'hard'); // checked => hard
+
+    t.addEventListener('change', async () => {
+      const before = getMode();
+      const want   = t.checked ? 'hard' : 'normal';
+      if (before === want) return;
+
+      // надёжно определяем, есть ли прогресс "сейчас"
+      let hasProgress = hasProgressNow();
+
+      if (hasProgress) {
+        const ok = await confirmModeChangeSet();
+        if (!ok) { t.checked = (before === 'hard'); return; }
+        // Очистка ТЕКУЩЕГО СЕТА
+        try {
+          const key = activeDeckKey();
+          const ids = getCurrentSliceWordIds(key);
+          if (A.state && A.state.stars) {
+            ids.forEach(id => { delete A.state.stars[starKey(id, key)]; });
+            A.saveState && A.saveState(A.state);
+          }
+        } catch(_){}
+      }
+
+      // Переключаем режим (глобально)
+      A.settings = A.settings || {};
+      A.settings.level = want;
+      try { A.saveSettings && A.saveSettings(A.settings); } catch(_){}
+      document.documentElement.dataset.level = want;
+
+      // Сообщим миру (вдруг тренер слушает событие), затем мягкий ремоунт экрана
+      try {
+        const ev = new Event('lexitron:level-changed');
+        document.dispatchEvent(ev); window.dispatchEvent(ev);
+      } catch(_){}
+
+      try {
+        if (A.Router && typeof A.Router.routeTo === 'function') {
+          A.Router.routeTo(A.Router.current || 'home'); // гарантированно обновит шаг
+        } else {
+          repaintStarsOnly();
+          renderSets();
+          A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender();
+        }
+      } catch(_){}
+    });
   }
 
   /* ------------------------ Роутер и старт ------------------------ */

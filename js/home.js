@@ -1,8 +1,9 @@
 /* ==========================================================
- * home.js — Главная (глобальный режим + кастомный confirm + очистка ТЕКУЩЕГО СЕТА)
+ * home.js — Главная (глобальный режим + кастомный confirm + очистка ТЕКУЩЕГО СЕТА + Избранное)
  *  - Режим сложности один на всё приложение (A.settings.level)
  *  - При переключении: кастомный диалог → при согласии очистка ТЕКУЩЕГО СЕТА → запись режима → мягкая перерисовка
  *  - Звёзды: двухфазный рендер (сначала целые, потом половинка наложением)
+ *  - Избранное: персист в A.state.favorites, сердце на карточке
  * ========================================================== */
 (function () {
   'use strict';
@@ -114,7 +115,7 @@
     });
   }
 
-  // Переключатель сложности: чисто глобальная логика + очистка ТЕКУЩЕГО СЕТА
+  // Переключатель сложности: глобальная логика + очистка ТЕКУЩЕГО СЕТА
   function bindLevelToggle() {
     const t = document.getElementById('levelToggle');
     if (!t) return;
@@ -212,16 +213,51 @@
   function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
   function uniqueById(arr) { const s = new Set(); return arr.filter(x => { const id = String(x.id); if (s.has(id)) return false; s.add(id); return true; }); }
 
-  /* --------------------------- Избранное (сердце) --------------------------- */
-  function isFav(key, id) {
-    try { if (typeof App.isFavorite === 'function') return !!App.isFavorite(key, id); } catch(_) {}
-    try { if (A.Favorites && typeof A.Favorites.has === 'function') return !!A.Favorites.has(key, id); } catch(_) {}
-    return false;
-  }
-  function toggleFav(key, id) {
-    try { if (typeof App.toggleFavorite === 'function') return App.toggleFavorite(key, id); } catch(_) {}
-    try { if (A.Favorites && typeof A.Favorites.toggle === 'function') return A.Favorites.toggle(key, id); } catch(_) {}
-  }
+  /* --------------------------- Избранное: хранилище --------------------------- */
+  A.Favorites = A.Favorites || (function () {
+    const A = window.App || {};
+    function loadStore() {
+      A.state = A.state || {};
+      A.state.favorites = A.state.favorites || {}; // { "deckKey:id": 1 }
+      return A.state.favorites;
+    }
+    function keyOf(deckKey, id) { return `${deckKey}:${id}`; }
+
+    function has(deckKey, id) {
+      const store = loadStore();
+      return !!store[keyOf(deckKey, id)];
+    }
+
+    function toggle(deckKey, id) {
+      const store = loadStore();
+      const k = keyOf(deckKey, id);
+      if (store[k]) { delete store[k]; }
+      else { store[k] = 1; }
+      try { A.saveState && A.saveState(A.state); } catch (_) {}
+      try { document.dispatchEvent(new CustomEvent('favorites:changed')); } catch (_) {}
+      return !!store[k];
+    }
+
+    function all() {
+      const store = loadStore();
+      return Object.keys(store).map(k => {
+        const idx = k.lastIndexOf(':');
+        const deckKey = k.slice(0, idx);
+        const id = k.slice(idx + 1);
+        return { deckKey, id: Number(id) };
+      });
+    }
+
+    function byDeck() {
+      const m = {};
+      all().forEach(({ deckKey, id }) => {
+        (m[deckKey] = m[deckKey] || []).push(id);
+      });
+      return m; // { deckKey: [ids...] }
+    }
+
+    return { has, toggle, all, byDeck };
+  })();
 
   /* ------------------------- DOM-шаблон главной ------------------------- */
   function resolveDeckTitle(key) {
@@ -344,6 +380,7 @@
     return Number(v) || 0;
   }
 
+  // Двухфазная отрисовка: сначала целые, потом "половинка" наложением
   function drawStarsTwoPhase(box, score, max) {
     if (!box) return;
     const EPS = 1e-6;
@@ -409,6 +446,7 @@
       : Math.floor(Math.random() * slice.length);
     const word = slice[idx];
 
+    // текущая карточка для мягкой перерисовки звёзд при смене режима
     A.__currentWord = word;
 
     const answers = document.querySelector('.answers-grid');
@@ -417,19 +455,28 @@
     const idkBtn  = document.querySelector('.idk-btn');
     const stats   = document.getElementById('dictStats');
 
+    // Сердце (Избранное)
     if (favBtn) {
-      const favNow = isFav(key, word.id);
+      const deckKey = key;
+      const inFavoritesDeck = (deckKey === 'favorites' || deckKey === 'fav');
+      const favNow = !inFavoritesDeck && A.Favorites.has(deckKey, word.id);
+
       favBtn.textContent = favNow ? '♥' : '♡';
       favBtn.classList.toggle('is-fav', favNow);
       favBtn.setAttribute('aria-pressed', String(favNow));
+      favBtn.disabled = !!inFavoritesDeck;
+
       try {
         const uk = getUiLang() === 'uk';
-        const title = uk ? 'У вибране' : 'В избранное';
+        const title = inFavoritesDeck
+          ? (uk ? 'У вибраному не можна додавати' : 'В Избранном добавлять нельзя')
+          : (uk ? 'У вибране' : 'В избранное');
         favBtn.title = title; favBtn.ariaLabel = title;
       } catch (_){}
+
       favBtn.onclick = function () {
-        try { toggleFav(key, word.id); } catch (_){}
-        const now = isFav(key, word.id);
+        if (inFavoritesDeck) return;
+        const now = A.Favorites.toggle(deckKey, word.id);
         favBtn.textContent = now ? '♥' : '♡';
         favBtn.classList.toggle('is-fav', now);
         favBtn.setAttribute('aria-pressed', String(now));
@@ -438,10 +485,12 @@
       };
     }
 
+    // Слово + звёзды
     const term = word.word || word.term || '';
     wordEl.textContent = term;
     renderStarsFor(word);
 
+    // Ответы
     const opts = buildOptions(word);
     answers.innerHTML = '';
 
@@ -486,6 +535,7 @@
           return;
         }
 
+        // неверно
         b.classList.add('is-wrong');
         b.disabled = true;
 
@@ -557,10 +607,8 @@
       }
       if (action === 'dicts') { A.ViewDicts && A.ViewDicts.mount && A.ViewDicts.mount(); return; }
       if (action === 'mistakes') { A.ViewMistakes && A.ViewMistakes.mount && A.ViewMistakes.mount(); return; }
-if (action === 'fav') {
-  App.ViewFavorites && App.ViewFavorites.mount && App.ViewFavorites.mount();
-  return;
-}
+      if (action === 'fav') { A.ViewFavorites && A.ViewFavorites.mount && A.ViewFavorites.mount(); return; }
+
       const uk = getUiLang() === 'uk';
       const titles = { dicts: uk ? 'Словники' : 'Словари', fav: uk ? 'Вибране' : 'Избранное', mistakes: uk ? 'Мої помилки' : 'Мои ошибки', stats: uk ? 'Статистика' : 'Статистика' };
       const name = titles[action] || (uk ? 'Екран' : 'Экран');

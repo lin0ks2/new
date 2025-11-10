@@ -33,8 +33,6 @@
   }
 
   function tUI() {
-    
-      if (action === 'fav' || action === 'favorites') { A.ViewFavorites && A.ViewFavorites.mount && A.ViewFavorites.mount(); return; }
 const uk = getUiLang() === 'uk';
     return uk
       ? { hints: 'Підказки', choose: 'Оберіть переклад', idk: 'Не знаю', fav: 'У вибране' }
@@ -572,6 +570,7 @@ const uk = getUiLang() === 'uk';
       }
       if (action === 'dicts') { A.ViewDicts && A.ViewDicts.mount && A.ViewDicts.mount(); return; }
       if (action === 'mistakes') { A.ViewMistakes && A.ViewMistakes.mount && A.ViewMistakes.mount(); return; }
+      if (action === 'fav' || action === 'favorites') { A.ViewFavorites && A.ViewFavorites.mount && A.ViewFavorites.mount(); return; }
 
       const uk = getUiLang() === 'uk';
       const titles = { dicts: uk ? 'Словники' : 'Словари', fav: uk ? 'Вибране' : 'Избранное', mistakes: uk ? 'Мої помилки' : 'Мои ошибки', stats: uk ? 'Статистика' : 'Статистика' };

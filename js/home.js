@@ -1,7 +1,7 @@
 /* ==========================================================
  * home.js — Главная (глобальный режим + кастомный confirm + очистка ТЕКУЩЕГО СЕТА)
  *  - Режим сложности один на всё приложение (A.settings.level)
- *  - При переключении: кастомный диалог → при согласии очистка ТЕКУЩЕГО СЕТА → запись режима → мягкий ремоунт
+ *  - При переключении: кастомный диалог → при согласии очистка ТЕКУЩЕГО СЕТА → запись режима → мягкая перерисовка
  *  - Звёзды: двухфазный рендер (сначала целые, потом половинка наложением)
  * ========================================================== */
 (function () {
@@ -71,12 +71,12 @@
     A.getStarStep = function(){ return (getMode() === 'normal') ? 1 : 0.5; };
   }
 
-  /* ---------------------- Кастомный диалог подтверждения ---------------------- */
+  // Кастомный диалог подтверждения
   function i18nConfirmTexts() {
     const uk = getUiLang() === 'uk';
     return uk
       ? { title:'Змінити режим?', textSet:'Перемикання режиму очистить прогрес поточного набору.', cancel:'Скасувати', ok:'Продовжити' }
-      : { title:'Сменить режим?', textSet:'Переключение режима очистит прогресс текущего набора.', cancel:'Отмена', ok:'Продолжить' };
+      : { title:'Сменить режим?', textSet:'Переключение режима очистит прогресс этого набора.', cancel:'Отмена', ok:'Продолжить' };
   }
   function confirmModeChangeSet() {
     const T = i18nConfirmTexts();
@@ -127,6 +127,20 @@
     catch (_) { return ACTIVE_KEY_FALLBACK; }
   }
 
+  // 🔐 НАДЁЖНАЯ проверка: есть ли ПРОГРЕСС ВО ВСЁМ АКТИВНОМ СЛОВАРЕ (не только в текущем сете)
+  function hasAnyProgressInDeck(deckKey){
+    try {
+      const st = (A.state && A.state.stars) ? A.state.stars : {};
+      const pref = String(deckKey) + ':';
+      for (const k in st) {
+        if (!Object.prototype.hasOwnProperty.call(st, k)) continue;
+        if (k.startsWith(pref) && Number(st[k] || 0) > 0) return true;
+      }
+    } catch(_){}
+    return false;
+  }
+
+  // Индексы и слова ТЕКУЩЕГО СЕТА (для точечной очистки после подтверждения)
   function getActiveBatchIndex() {
     try { return (A.Trainer && typeof A.Trainer.getBatchIndex === 'function') ? A.Trainer.getBatchIndex(activeDeckKey()) : 0; }
     catch (_) { return 0; }
@@ -148,29 +162,54 @@
     return deck.slice(from, to).map(w => w && w.id).filter(Boolean);
   }
 
-  /* --- Надёжная проверка прогресса: текущая карточка → слайс → расчётный сет --- */
-  function getStars(wordId) {
-    const key = activeDeckKey();
-    const v = (A.state && A.state.stars && A.state.stars[starKey(wordId, key)]) || 0;
-    return Number(v) || 0;
-  }
-  function hasProgressNow() {
-    try {
-      // 1) Текущая карточка (самый точный индикатор «прямо сейчас»)
-      if (A.__currentWord && A.__currentWord.id != null) {
-        if (getStars(A.__currentWord.id) > 0) return true;
-      }
-      // 2) Фактический слайс тренера
+  /* ------------------------- Переключатель сложности ------------------------- */
+  function bindLevelToggle() {
+    const t = document.getElementById('levelToggle');
+    if (!t) return;
+
+    t.checked = (getMode() === 'hard'); // checked => hard
+
+    t.addEventListener('change', async () => {
+      const before = getMode();
+      const want   = t.checked ? 'hard' : 'normal';
+      if (before === want) return;
+
       const key = activeDeckKey();
-      const ids = getCurrentSliceWordIds(key);
-      for (let i = 0; i < ids.length; i++) {
-        if (getStars(ids[i]) > 0) return true;
+
+      // ✅ проверяем прогресс по ВСЕМУ словарю (устойчиво на чистом старте)
+      const hasProgress = hasAnyProgressInDeck(key);
+
+      if (hasProgress) {
+        const ok = await confirmModeChangeSet();
+        if (!ok) { t.checked = (before === 'hard'); return; }
+
+        // Очистка ТЕКУЩЕГО СЕТА
+        try {
+          const ids = getCurrentSliceWordIds(key);
+          if (A.state && A.state.stars) {
+            ids.forEach(id => { delete A.state.stars[starKey(id, key)]; });
+            // сохраняем по “каноническому” API без аргументов (там троттлинг/idle)
+            A.saveState && A.saveState();
+          }
+        } catch(_){}
       }
-    } catch(_) {}
-    return false;
+
+      // Переключаем режим (глобально)
+      A.settings = A.settings || {};
+      A.settings.level = want;
+      try { A.saveSettings && A.saveSettings(A.settings); } catch(_){}
+      document.documentElement.dataset.level = want;
+
+      // Мягкая перерисовка
+      try {
+        repaintStarsOnly();
+        renderSets();
+        A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender();
+      } catch(_){}
+    });
   }
 
-  /* ------------------------- DOM-шаблон главной ------------------------- */
+  /* ------------------------------ Текст слова ------------------------------ */
   function tWord(w) {
     const lang = getUiLang();
     if (!w) return '';
@@ -182,6 +221,7 @@
   function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
   function uniqueById(arr) { const s = new Set(); return arr.filter(x => { const id = String(x.id); if (s.has(id)) return false; s.add(id); return true; }); }
 
+  /* --------------------------- Избранное (сердце) --------------------------- */
   function isFav(key, id) {
     try { if (typeof App.isFavorite === 'function') return !!App.isFavorite(key, id); } catch(_) {}
     try { if (A.Favorites && typeof A.Favorites.has === 'function') return !!A.Favorites.has(key, id); } catch(_) {}
@@ -192,6 +232,7 @@
     try { if (A.Favorites && typeof A.Favorites.toggle === 'function') return A.Favorites.toggle(key, id); } catch(_) {}
   }
 
+  /* ------------------------- DOM-шаблон главной ------------------------- */
   function resolveDeckTitle(key) {
     const lang = getUiLang();
     try {
@@ -306,7 +347,11 @@
   }
 
   /* ------------------------------ Звёзды ------------------------------- */
-  // (getStars выше)
+  function getStars(wordId) {
+    const key = activeDeckKey();
+    const v = (A.state && A.state.stars && A.state.stars[starKey(wordId, key)]) || 0;
+    return Number(v) || 0;
+  }
 
   function drawStarsTwoPhase(box, score, max) {
     if (!box) return;
@@ -501,59 +546,6 @@
       const have = getStars(word.id);
       drawStarsTwoPhase(box, have, max);
     } catch(_){}
-  }
-
-  /* ---------------------------- Переключатель уровня ---------------------------- */
-  function bindLevelToggle() {
-    const t = document.getElementById('levelToggle');
-    if (!t) return;
-
-    t.checked = (getMode() === 'hard'); // checked => hard
-
-    t.addEventListener('change', async () => {
-      const before = getMode();
-      const want   = t.checked ? 'hard' : 'normal';
-      if (before === want) return;
-
-      // надёжно определяем, есть ли прогресс "сейчас"
-      let hasProgress = hasProgressNow();
-
-      if (hasProgress) {
-        const ok = await confirmModeChangeSet();
-        if (!ok) { t.checked = (before === 'hard'); return; }
-        // Очистка ТЕКУЩЕГО СЕТА
-        try {
-          const key = activeDeckKey();
-          const ids = getCurrentSliceWordIds(key);
-          if (A.state && A.state.stars) {
-            ids.forEach(id => { delete A.state.stars[starKey(id, key)]; });
-            A.saveState && A.saveState(A.state);
-          }
-        } catch(_){}
-      }
-
-      // Переключаем режим (глобально)
-      A.settings = A.settings || {};
-      A.settings.level = want;
-      try { A.saveSettings && A.saveSettings(A.settings); } catch(_){}
-      document.documentElement.dataset.level = want;
-
-      // Сообщим миру (вдруг тренер слушает событие), затем мягкий ремоунт экрана
-      try {
-        const ev = new Event('lexitron:level-changed');
-        document.dispatchEvent(ev); window.dispatchEvent(ev);
-      } catch(_){}
-
-      try {
-        if (A.Router && typeof A.Router.routeTo === 'function') {
-          A.Router.routeTo(A.Router.current || 'home'); // гарантированно обновит шаг
-        } else {
-          repaintStarsOnly();
-          renderSets();
-          A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender();
-        }
-      } catch(_){}
-    });
   }
 
   /* ------------------------ Роутер и старт ------------------------ */

@@ -92,9 +92,27 @@
 
     const all = listFavoriteDecks();
     if (!all.length){
-      app.innerHTML = `<div class="home"><section class="card"><h3 style="margin:0 0 6px;">${t.title}</h3>
-<div class="dicts-flags" id="favorites-flags"></div><p style="opacity:.7; margin:0;">${t.empty}</p></section></div>`;
-      return;
+      \1
+
+    // Render visual-only language flags like in mistakes (no filtering logic)
+    (function renderFavFlags(){
+      try{
+        const wrap = document.getElementById('favorites-flags');
+        if (!wrap) return;
+        const langs = Array.from(new Set(all.map(x=>x.baseLang || 'xx')));
+        wrap.innerHTML = langs.map((lg, idx)=>{
+          const f = flagForKey(all.find(x=>(x.baseLang||'xx')===lg).baseDeckKey);
+          return `<button type="button" class="dict-flag${idx===0?' active':''}" data-lang="${lg}" aria-pressed="${idx===0?'true':'false'}">${f}</button>`;
+        }).join('');
+        wrap.querySelectorAll('.dict-flag').forEach(btn=>{
+          btn.addEventListener('click', ()=>{
+            wrap.querySelectorAll('.dict-flag').forEach(b=>b.classList.remove('active'));
+            btn.classList.add('active');
+          });
+        });
+      }catch(_){}
+    })();
+return;
     }
 
     const headerFlag = flagForKey(all[0].baseDeckKey);
@@ -107,7 +125,7 @@
         <td class="t-center">${flag}</td>
         <td class="c-name">${name}</td>
         <td class="t-center">${item.count}</td>
-        <td class="c-actions">
+        <td class="t-center">
           <span class="mistakes-preview" title="Предпросмотр" aria-label="Предпросмотр">👁️</span>
           <span class="mistakes-delete" title="Удалить" aria-label="Удалить" style="margin-left:10px;">🗑️</span>
         </td>
@@ -120,9 +138,7 @@
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <h3 style="margin:0 0 6px;">${t.title}</h3>
 <div class="dicts-flags" id="favorites-flags"></div>
-            <div style="border:1px solid rgba(255,255,255,.12);padding:.25rem .5rem;border-radius:.6rem;opacity:.9">${headerFlag}</div>
           </div>
-          <p style="opacity:.7; margin:0;">${t.sub}</p>
           <div class="dicts">
             <div class="dicts-table-wrap">
               <table class="dicts-table">

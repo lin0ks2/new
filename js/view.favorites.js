@@ -92,27 +92,9 @@
 
     const all = listFavoriteDecks();
     if (!all.length){
-      \1
-
-    // Render visual-only language flags like in mistakes (no filtering logic)
-    (function renderFavFlags(){
-      try{
-        const wrap = document.getElementById('favorites-flags');
-        if (!wrap) return;
-        const langs = Array.from(new Set(all.map(x=>x.baseLang || 'xx')));
-        wrap.innerHTML = langs.map((lg, idx)=>{
-          const f = flagForKey(all.find(x=>(x.baseLang||'xx')===lg).baseDeckKey);
-          return `<button type="button" class="dict-flag${idx===0?' active':''}" data-lang="${lg}" aria-pressed="${idx===0?'true':'false'}">${f}</button>`;
-        }).join('');
-        wrap.querySelectorAll('.dict-flag').forEach(btn=>{
-          btn.addEventListener('click', ()=>{
-            wrap.querySelectorAll('.dict-flag').forEach(b=>b.classList.remove('active'));
-            btn.classList.add('active');
-          });
-        });
-      }catch(_){}
-    })();
-return;
+      app.innerHTML = `<div class="home"><section class="card dicts-card"><h3 style="margin:0 0 6px;">${t.title}</h3>
+<div class="dicts-flags" id="favorites-flags"></div><p style="opacity:.7; margin:0;">${t.empty}</p></section></div>`;
+      return;
     }
 
     const headerFlag = flagForKey(all[0].baseDeckKey);
@@ -122,9 +104,9 @@ return;
       const name = resolveNameByKey(item.baseDeckKey);
       const disabled = (item.count < 4) ? ' data-disabled="1" aria-disabled="true"' : '';
       return `<tr class="dict-row" data-key="${item.favoritesKey}"${disabled}>
-        <td class="t-center">${flag}</td>
+        <td class="c-flag">${flag}</td>
         <td class="c-name">${name}</td>
-        <td class="t-center">${item.count}</td>
+        <td class="c-count">${item.count}</td>
         <td class="t-center">
           <span class="mistakes-preview" title="Предпросмотр" aria-label="Предпросмотр">👁️</span>
           <span class="mistakes-delete" title="Удалить" aria-label="Удалить" style="margin-left:10px;">🗑️</span>
@@ -134,7 +116,7 @@ return;
 
     app.innerHTML = `
       <div class="home">
-        <section class="card">
+        <section class="card dicts-card">
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <h3 style="margin:0 0 6px;">${t.title}</h3>
 <div class="dicts-flags" id="favorites-flags"></div>
@@ -159,7 +141,7 @@ return;
       if (!el) return;
       if (!selectedKey){ el.disabled = true; return; }
       const row = app.querySelector('tr.dict-row.is-selected') || app.querySelector(`tr.dict-row[data-key="${selectedKey}"]`);
-      const count = row ? Number((row.querySelector('.t-center')||{}).textContent || '0') : 0;
+      const count = row ? Number((row.querySelector('.c-count')||{}).textContent || '0') : 0;
       el.disabled = !(count >= 4);
     }
 
@@ -198,7 +180,7 @@ return;
       ok.addEventListener('click', ()=>{
         if (!selectedKey) return;
         const row = app.querySelector('tr.dict-row.is-selected') || app.querySelector(`tr.dict-row[data-key="${selectedKey}"]`);
-        const count = row ? Number((row.querySelector('.t-center')||{}).textContent || '0') : 0;
+        const count = row ? Number((row.querySelector('.c-count')||{}).textContent || '0') : 0;
         if (count < 4) return;
         try{ A.Trainer && A.Trainer.setDeckKey && A.Trainer.setDeckKey(selectedKey); }catch(_){}
         try{ A.Router && A.Router.routeTo && A.Router.routeTo('home'); }catch(_){}

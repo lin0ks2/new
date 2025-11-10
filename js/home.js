@@ -33,7 +33,9 @@
   }
 
   function tUI() {
-    const uk = getUiLang() === 'uk';
+    
+      if (action === 'fav' || action === 'favorites') { A.ViewFavorites && A.ViewFavorites.mount && A.ViewFavorites.mount(); return; }
+const uk = getUiLang() === 'uk';
     return uk
       ? { hints: 'Підказки', choose: 'Оберіть переклад', idk: 'Не знаю', fav: 'У вибране' }
       : { hints: 'Подсказки', choose: 'Выберите перевод', idk: 'Не знаю', fav: 'В избранное' };

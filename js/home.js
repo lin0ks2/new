@@ -65,7 +65,7 @@
     return dl === 'hard' ? 'hard' : 'normal';
   }
 
-  // Всегда переопределяем, чтобы перебить любые легаси-версии
+  // Жёстко задаём шаг звёзд, чтобы перебить любые легаси-настройки
   A.getMode = function(){ return getMode(); };
   A.getStarStep = function(){ return (getMode() === 'normal') ? 1 : 0.5; };
   A.Config = A.Config || {};
@@ -115,6 +115,27 @@
     });
   }
 
+  /* ---------- вспомогательно: собрать кандидатов для проверки прогресса ---------- */
+  function collectCandidateIdsForProgress(key){
+    const ids = new Set();
+
+    // 1) текущая карточка (самый надёжный индикатор «мы уже отвечали здесь»)
+    try { if (A.__currentWord && A.__currentWord.id) ids.add(String(A.__currentWord.id)); } catch(_){}
+
+    // 2) фактический слайс тренера
+    try {
+      if (A.Trainer && typeof A.Trainer.getDeckSlice === 'function') {
+        const slice = A.Trainer.getDeckSlice(key) || [];
+        slice.forEach(w => { if (w && w.id) ids.add(String(w.id)); });
+      }
+    } catch(_){}
+
+    // 3) расчётный сет по SET_SIZE + batchIndex
+    try { getCurrentSetWordIds(key).forEach(id => ids.add(String(id))); } catch(_){}
+
+    return Array.from(ids);
+  }
+
   // Переключатель сложности: глобальный + очистка ТЕКУЩЕГО СЕТА
   function bindLevelToggle() {
     const t = document.getElementById('levelToggle');
@@ -127,21 +148,21 @@
       const want   = t.checked ? 'hard' : 'normal';
       if (before === want) return;
 
-      // Есть ли прогресс именно в ТЕКУЩЕМ СЕТЕ?
+      // Есть ли прогресс? (объединяем текущую карточку, слайс тренера и расчётный сет)
       let hasProgress = false;
       try {
         const key = activeDeckKey();
-        const ids = getCurrentSetWordIds(key); // <-- фикс: работаем с «набором», а не со «слайсом»
+        const candIds = collectCandidateIdsForProgress(key);
         const st  = (A.state && A.state.stars) ? A.state.stars : {};
-        for (let i = 0; i < ids.length; i++) {
-          if (Number(st[starKey(ids[i], key)] || 0) > 0) { hasProgress = true; break; }
+        for (let i = 0; i < candIds.length; i++) {
+          if (Number(st[starKey(candIds[i], key)] || 0) > 0) { hasProgress = true; break; }
         }
       } catch (_) {}
 
       if (hasProgress) {
         const ok = await confirmModeChangeSet();
         if (!ok) { t.checked = (before === 'hard'); return; }
-        // Очистка ТЕКУЩЕГО СЕТА
+        // Очистка ТЕКУЩЕГО СЕТА (по визуальной логике набора)
         try {
           const key = activeDeckKey();
           const ids = getCurrentSetWordIds(key);
@@ -157,8 +178,6 @@
       A.settings.level = want;
       try { A.saveSettings && A.saveSettings(A.settings); } catch(_){}
       document.documentElement.dataset.level = want;
-
-      // Сообщим слушателям (если кто-то кэшировал шаг/режим)
       try { window.dispatchEvent(new Event('mm:mode-changed')); } catch(_){}
 
       // Мягкая перерисовка
@@ -193,7 +212,7 @@
     return 0;
   }
 
-  // ВСЕГДА считаем текущий СЕТ по SET_SIZE (визуальная логика)
+  // ТЕКУЩИЙ СЕТ по SET_SIZE (визуальная логика)
   function getCurrentSetWordIds(key){
     const deck = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
       ? (A.Decks.resolveDeckByKey(key) || [])

@@ -138,7 +138,7 @@
 
     // ---- делегаты таблицы
     if (tbody){
-      tbody.addEventListener('click', async (e)=>{
+      tbody.addEventListener('click', (e)=>{
         const eye = e.target.closest('.dicts-preview');
         if (eye){
           e.stopPropagation();
@@ -154,9 +154,9 @@
           const favKey  = tr.dataset.key;
           const TL      = currentTrainLang();
 
-          // Удаляем надёжно + чистим lastFavoritesKey, если совпадает
-          const ok = tryRemoveFavoriteDeck(TL, baseKey, favKey);
-          if (ok){
+          // надёжная очистка + сброс сохранённого ключа при необходимости
+          const removed = tryClearFavorites(TL, baseKey, favKey);
+          if (removed){
             try {
               if ((A.settings && A.settings.lastFavoritesKey) === favKey){
                 A.settings.lastFavoritesKey = null;
@@ -258,26 +258,48 @@
       }
     }
 
-    function tryRemoveFavoriteDeck(TL, baseKey, favKey){
+    function tryClearFavorites(TL, baseKey, favKey){
       try{
-        // 1) самые вероятные варианты API
+        // Самые вероятные API
         if (A.Favorites && typeof A.Favorites.clearForDeck === 'function'){
           A.Favorites.clearForDeck(TL, baseKey); return true;
         }
         if (A.Favorites && typeof A.Favorites.removeDeck === 'function'){
           A.Favorites.removeDeck(TL, baseKey);  return true;
         }
-        if (A.Favorites && typeof A.Favorites.clearFor === 'function'){
-          A.Favorites.clearFor(TL, baseKey);    return true;
+        // Варианты без trainLang
+        if (A.Favorites && typeof A.Favorites.clearForDeck === 'function'){
+          A.Favorites.clearForDeck(baseKey);     return true;
         }
-        // 2) по ключу-виртуалу
+        if (A.Favorites && typeof A.Favorites.removeDeck === 'function'){
+          A.Favorites.removeDeck(baseKey);       return true;
+        }
+        if (A.Favorites && typeof A.Favorites.clearFor === 'function'){
+          A.Favorites.clearFor(TL, baseKey);     return true;
+        }
+        if (A.Favorites && typeof A.Favorites.clearFor === 'function'){
+          A.Favorites.clearFor(baseKey);         return true;
+        }
+        // По виртуальному ключу
         if (A.Favorites && typeof A.Favorites.clearByKey === 'function'){
-          A.Favorites.clearByKey(favKey);       return true;
+          A.Favorites.clearByKey(favKey);        return true;
         }
         if (A.Favorites && typeof A.Favorites.removeByKey === 'function'){
-          A.Favorites.removeByKey(favKey);      return true;
+          A.Favorites.removeByKey(favKey);       return true;
         }
-        // 3) если ничего не сработало — вернём false
+        if (A.Favorites && typeof A.Favorites.clear === 'function'){
+          A.Favorites.clear(favKey);             return true;
+        }
+        if (A.Favorites && typeof A.Favorites.remove === 'function'){
+          A.Favorites.remove(favKey);            return true;
+        }
+        // Сеттеры "поставить пустой список"
+        if (A.Favorites && typeof A.Favorites.setForDeck === 'function'){
+          A.Favorites.setForDeck(TL, baseKey, []); return true;
+        }
+        if (A.Favorites && typeof A.Favorites.setIdsForDeck === 'function'){
+          A.Favorites.setIdsForDeck(TL, baseKey, []); return true;
+        }
         return false;
       }catch(_){
         return false;

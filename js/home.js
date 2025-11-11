@@ -114,103 +114,29 @@
     });
   }
 
-  // Переключатель сложности: чисто глобальная логика + очистка ТЕКУЩЕГО СЕТА
-  function bindLevelToggle() {
-    const t = document.getElementById('levelToggle');
-    if (!t) return;
+  /* ------------------------------ Утилиты ------------------------------ */
 
-    t.checked = (getMode() === 'hard'); // checked => hard
-
-    t.addEventListener('change', async () => {
-      const before = getMode();
-      const want   = t.checked ? 'hard' : 'normal';
-      if (before === want) return;
-
-      // === корректно определяем прогресс в ТЕКУЩЕМ СЕТЕ без побочных эффектов ===
-      let hasProgress = false;
-      try {
-        // 1) ключ берём у Тренера (без мутаций):
-        const keyToCheck =
-          (A.Trainer && typeof A.Trainer.getDeckKey === 'function' && A.Trainer.getDeckKey())
-          || ((A.settings && A.settings.lastDeckKey) || null)
-          || ACTIVE_KEY_FALLBACK;
-
-        // 2) текущий слайс по ЭТОМУ ключу:
-        let slice = [];
-        if (A.Trainer && typeof A.Trainer.getDeckSlice === 'function') {
-          slice = A.Trainer.getDeckSlice(keyToCheck) || [];
-        } else {
-          // резервный путь: считаем слайс вручную
-          const full = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
-            ? (A.Decks.resolveDeckByKey(keyToCheck) || [])
-            : [];
-          const idx = (A.Trainer && typeof A.Trainer.getBatchIndex === 'function')
-            ? (A.Trainer.getBatchIndex(keyToCheck) || 0)
-            : 0;
-          const from = idx * SET_SIZE;
-          const to   = Math.min(full.length, (idx + 1) * SET_SIZE);
-          slice = full.slice(from, to);
-        }
-
-        // 3) проверяем звёзды по ТОМУ ЖЕ ключу:
-        const st = (A.state && A.state.stars) ? A.state.stars : {};
-        for (let i = 0; i < slice.length; i++) {
-          const id = slice[i] && slice[i].id;
-          if (!id) continue;
-          const v = Number(st[starKey(id, keyToCheck)] || 0);
-          if (v > 0) { hasProgress = true; break; }
-        }
-      } catch(_) {}
-
-      if (hasProgress) {
-        const ok = await confirmModeChangeSet();
-        if (!ok) { t.checked = (before === 'hard'); return; }
-        // Очистка ТЕКУЩЕГО СЕТА — именно по тому ключу, где был прогресс:
-        try {
-          const keyToClear =
-            (A.Trainer && typeof A.Trainer.getDeckKey === 'function' && A.Trainer.getDeckKey())
-            || ((A.settings && A.settings.lastDeckKey) || null)
-            || ACTIVE_KEY_FALLBACK;
-
-          let ids = [];
-          if (A.Trainer && typeof A.Trainer.getDeckSlice === 'function') {
-            const slice = A.Trainer.getDeckSlice(keyToClear) || [];
-            ids = slice.map(w => w && w.id).filter(Boolean);
-          } else {
-            const full = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
-              ? (A.Decks.resolveDeckByKey(keyToClear) || [])
-              : [];
-            const idx = (A.Trainer && typeof A.Trainer.getBatchIndex === 'function')
-              ? (A.Trainer.getBatchIndex(keyToClear) || 0)
-              : 0;
-            const from = idx * SET_SIZE;
-            const to   = Math.min(full.length, (idx + 1) * SET_SIZE);
-            ids = full.slice(from, to).map(w => w && w.id).filter(Boolean);
-          }
-
-          if (A.state && A.state.stars) {
-            ids.forEach(id => { delete A.state.stars[starKey(id, keyToClear)]; });
-            A.saveState && A.saveState(A.state);
-          }
-        } catch(_){}
+  // favorites:<TL>:<baseKey>  |  mistakes:<baseKey>  -> вернуть baseKey
+  function extractBaseFromVirtual(key){
+    try {
+      if (!key) return null;
+      if (/^favorites:/i.test(key)) {
+        const parts = String(key).split(':'); // ["favorites", "<tl>", "<baseKey>"]
+        return parts.slice(2).join(':') || null;
       }
-
-      // Переключаем режим (глобально)
-      A.settings = A.settings || {};
-      A.settings.level = want;
-      try { A.saveSettings && A.saveSettings(A.settings); } catch(_){}
-      document.documentElement.dataset.level = want;
-
-      // Мягкая перерисовка
-      try {
-        repaintStarsOnly();
-        renderSets();
-        A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender();
-      } catch(_){}
-    });
+      if (/^mistakes:/i.test(key)) {
+        return String(key).split(':').slice(1).join(':') || null;
+      }
+      return null;
+    } catch(_) { return null; }
   }
 
-  /* ------------------------------ Утилиты ------------------------------ */
+  // ---- ПРАВКА: динамический starKey вместо «снимка» на момент загрузки ----
+  function starKey(id, key) {
+    try { if (A && typeof A.starKey === 'function') return A.starKey(id, key); }
+    catch(_){}
+    return `${key}:${id}`;
+  }
 
   // ---- Safe key helpers (fallback после удаления виртуальных колод) ----
   function isValidDeckKey(key){
@@ -238,50 +164,18 @@
 
   // prefer — “ключ, к которому хотим вернуться” (например, откуда пришли в МО/Избранное)
   function safeDeckKey(prefer){
-    // 1) если Trainer уже держит валидный ключ — используем его
     try {
       if (A.Trainer && typeof A.Trainer.getDeckKey === 'function'){
         const k = A.Trainer.getDeckKey();
         if (isValidDeckKey(k)) return k;
       }
     } catch(_){}
-
-    // 2) если есть prefer и он валиден — берём его
     if (isValidDeckKey(prefer)) return prefer;
-
-    // 3) иначе пробуем lastDeckKey из настроек
     try {
       const k = (A.settings && A.settings.lastDeckKey) || null;
       if (isValidDeckKey(k)) return k;
     } catch(_){}
-
-    // 4) иначе — первый доступный базовый словарь
     return firstAvailableBaseDeckKey();
-  }
-
-  // favorites:<TL>:<baseKey>  |  mistakes:<baseKey>  -> вернуть baseKey
-  function extractBaseFromVirtual(key){
-    try {
-      if (!key) return null;
-      if (/^favorites:/i.test(key)) {
-        const parts = String(key).split(':'); // ["favorites", "<tl>", "<baseKey>"]
-        return parts.slice(2).join(':') || null;
-      }
-      if (/^mistakes:/i.test(key)) {
-        return String(key).split(':').slice(1).join(':') || null;
-      }
-      return null;
-    } catch(_) { return null; }
-  }
-
-  // ---- ПРАВКА: динамический starKey вместо «снимка» на момент загрузки ----
-  function starKey(id, key) {
-    try {
-      if (A && typeof A.starKey === 'function') {
-        return A.starKey(id, key);
-      }
-    } catch(_){}
-    return `${key}:${id}`;
   }
 
   // ЧИСТАЯ версия: не изменяет состояние, только выбирает лучший ключ
@@ -289,7 +183,6 @@
     try {
       const kTrainer = (A.Trainer && typeof A.Trainer.getDeckKey === 'function') ? A.Trainer.getDeckKey() : null;
       if (isValidDeckKey(kTrainer)) return kTrainer;
-
       const prefer = (A.settings && A.settings.preferredReturnKey) || null;
       return safeDeckKey(prefer);
     } catch (_){
@@ -313,7 +206,9 @@
     const deck = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
       ? (A.Decks.resolveDeckByKey(key) || [])
       : [];
-    const idx  = getActiveBatchIndex();
+    const idx  = (A.Trainer && typeof A.Trainer.getBatchIndex === 'function')
+      ? (A.Trainer.getBatchIndex(key) || 0)
+      : 0;
     const from = idx * SET_SIZE;
     const to   = Math.min(deck.length, (idx + 1) * SET_SIZE);
     return deck.slice(from, to).map(w => w && w.id).filter(Boolean);
@@ -330,15 +225,77 @@
   function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
   function uniqueById(arr) { const s = new Set(); return arr.filter(x => { const id = String(x.id); if (s.has(id)) return false; s.add(id); return true; }); }
 
-  /* --------------------------- Избранное (сердце) --------------------------- */
-  function isFav(key, id) {
-    try { if (typeof App.isFavorite === 'function') return !!App.isFavorite(key, id); } catch(_) {}
-    try { if (A.Favorites && typeof A.Favorites.has === 'function') return !!A.Favorites.has(key, id); } catch(_) {}
-    return false;
-  }
-  function toggleFav(key, id) {
-    try { if (typeof App.toggleFavorite === 'function') return App.toggleFavorite(key, id); } catch(_) {}
-    try { if (A.Favorites && typeof A.Favorites.toggle === 'function') return A.Favorites.toggle(key, id); } catch(_) {}
+  // Переключатель сложности: чисто глобальная логика + очистка ТЕКУЩЕГО СЕТА
+  function bindLevelToggle() {
+    const t = document.getElementById('levelToggle');
+    if (!t) return;
+
+    t.checked = (getMode() === 'hard'); // checked => hard
+
+    t.addEventListener('change', async () => {
+      const before = getMode();
+      const want   = t.checked ? 'hard' : 'normal';
+      if (before === want) return;
+
+      // === УСИЛЕННЫЙ ДЕТЕКТ ПРОГРЕССА В ТЕКУЩЕМ СЕТЕ ===
+      let hasProgress = false;
+      let keyToCheck = null;
+      try {
+        keyToCheck =
+          (A.Trainer && typeof A.Trainer.getDeckKey === 'function' && A.Trainer.getDeckKey())
+          || ((A.settings && A.settings.lastDeckKey) || null)
+          || ACTIVE_KEY_FALLBACK;
+
+        // 1) Пытаемся получить id текущего сета (через наш безопасный helper)
+        const ids = getCurrentSliceWordIds(keyToCheck);
+        const st  = (A.state && A.state.stars) ? A.state.stars : {};
+
+        if (ids && ids.length) {
+          for (let i = 0; i < ids.length; i++) {
+            if (Number(st[starKey(ids[i], keyToCheck)] || 0) > 0) { hasProgress = true; break; }
+          }
+        }
+
+        // 2) Фоллбек: если слайс пустой/не инициализирован — сканируем по префиксу ключа
+        if (!hasProgress) {
+          const pref = String(keyToCheck) + ':';
+          for (const k in st) {
+            if (!Object.prototype.hasOwnProperty.call(st, k)) continue;
+            if (k.indexOf(pref) === 0 && Number(st[k] || 0) > 0) { hasProgress = true; break; }
+          }
+        }
+      } catch(_) {}
+
+      if (hasProgress) {
+        const ok = await confirmModeChangeSet();
+        if (!ok) { t.checked = (before === 'hard'); return; }
+        // Очистка ТЕКУЩЕГО СЕТА — именно по тому ключу, где был прогресс:
+        try {
+          const keyToClear = keyToCheck;
+
+          let ids = getCurrentSliceWordIds(keyToClear);
+          if (!ids || !ids.length) ids = []; // на всякий случай
+
+          if (ids.length && A.state && A.state.stars) {
+            ids.forEach(id => { delete A.state.stars[starKey(id, keyToClear)]; });
+            A.saveState && A.saveState(A.state);
+          }
+        } catch(_){}
+      }
+
+      // Переключаем режим (глобально)
+      A.settings = A.settings || {};
+      A.settings.level = want;
+      try { A.saveSettings && A.saveSettings(A.settings); } catch(_){}
+      document.documentElement.dataset.level = want;
+
+      // Мягкая перерисовка
+      try {
+        repaintStarsOnly();
+        renderSets();
+        A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender();
+      } catch(_){}
+    });
   }
 
   /* ------------------------- DOM-шаблон главной ------------------------- */
@@ -356,7 +313,7 @@
       }
       if (A.Dicts && A.Dicts[key]) {
         const d = A.Dicts[key];
-        return (lang === 'uk') ? (d.name_uk || d.title_ук || d.uk || d.name || d.title)
+        return (lang === 'uk') ? (d.name_uk || d.title_uk || d.uk || d.name || d.title)
                                : (d.name_ru || d.title_ru || d.ru || d.name || d.title);
       }
     } catch (_) {}
@@ -428,44 +385,46 @@
       : [];
 
     const grid    = document.getElementById('setsBar');
-    const statsEl = document.getElementById('setStats');
-    if (!grid) return;
+    theStats: {
+      const statsEl = document.getElementById('setStats');
+      if (!grid) break theStats;
 
-    const totalSets = Math.ceil(deck.length / SET_SIZE);
-    const activeIdx = getActiveBatchIndex();
-    grid.innerHTML = '';
+      const totalSets = Math.ceil(deck.length / SET_SIZE);
+      const activeIdx = getActiveBatchIndex();
+      grid.innerHTML = '';
 
-    const starsMax = (A.Trainer && typeof A.Trainer.starsMax === 'function') ? A.Trainer.starsMax() : 5;
+      const starsMax = (A.Trainer && typeof A.Trainer.starsMax === 'function') ? A.Trainer.starsMax() : 5;
 
-    for (let i = 0; i < totalSets; i++) {
-      const from = i * SET_SIZE;
-      const to   = Math.min(deck.length, (i + 1) * SET_SIZE);
-      const sub  = deck.slice(from, to);
-      const done = sub.length > 0 && sub.every(w => ((A.state && A.state.stars && A.state.stars[starKey(w.id, key)]) || 0) >= starsMax);
+      for (let i = 0; i < totalSets; i++) {
+        const from = i * SET_SIZE;
+        const to   = Math.min(deck.length, (i + 1) * SET_SIZE);
+        const sub  = deck.slice(from, to);
+        const done = sub.length > 0 && sub.every(w => ((A.state && A.state.stars && A.state.stars[starKey(w.id, key)]) || 0) >= starsMax);
 
-      const btn = document.createElement('button');
-      btn.className = 'set-pill' + (i === activeIdx ? ' is-active' : '') + (done ? ' is-done' : '');
-      btn.textContent = i + 1;
-      btn.onclick = () => {
-        try { if (A.Trainer && typeof A.Trainer.setBatchIndex === 'function') A.Trainer.setBatchIndex(i, key); } catch (_){}
-        renderSets(); renderTrainer();
-        try { A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender(); } catch(_){}
-      };
-      grid.appendChild(btn);
-    }
+        const btn = document.createElement('button');
+        btn.className = 'set-pill' + (i === activeIdx ? ' is-active' : '') + (done ? ' is-done' : '');
+        btn.textContent = i + 1;
+        btn.onclick = () => {
+          try { if (A.Trainer && typeof A.Trainer.setBatchIndex === 'function') A.Trainer.setBatchIndex(i, key); } catch (_){}
+          renderSets(); renderTrainer();
+          try { A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender(); } catch(_){}
+        };
+        grid.appendChild(btn);
+      }
 
-    const i = getActiveBatchIndex();
-    const from = i * SET_SIZE, to = Math.min(deck.length, (i + 1) * SET_SIZE);
-    const words = deck.slice(from, to);
+      const i = getActiveBatchIndex();
+      const from = i * SET_SIZE, to = Math.min(deck.length, (i + 1) * SET_SIZE);
+      const words = deck.slice(from, to);
 
-    const starsMax2 = (A.Trainer && typeof A.Trainer.starsMax === 'function') ? A.Trainer.starsMax() : 5;
-    const learned = words.filter(w => ((A.state && A.state.stars && A.state.stars[starKey(w.id, key)]) || 0) >= starsMax2).length;
+      const starsMax2 = (A.Trainer && typeof A.Trainer.starsMax === 'function') ? A.Trainer.starsMax() : 5;
+      const learned = words.filter(w => ((A.state && A.state.stars && A.state.stars[starKey(w.id, key)]) || 0) >= starsMax2).length;
 
-    if (statsEl) {
-      const uk = getUiLang() === 'uk';
-      statsEl.textContent = uk
-        ? `Слів у наборі: ${words.length} / Вивчено: ${learned}`
-        : `Слов в наборе: ${words.length} / Выучено: ${learned}`;
+      if (statsEl) {
+        const uk = getUiLang() === 'uk';
+        statsEl.textContent = uk
+          ? `Слів у наборі: ${words.length} / Вивчено: ${learned}`
+          : `Слов в наборе: ${words.length} / Выучено: ${learned}`;
+      }
     }
   }
 
@@ -624,7 +583,7 @@
         btn.disabled = true;
         const id = btn.getAttribute('data-id');
         if (id && String(id) === String(correctId)) btn.classList.add('is-correct');
-        else btn.classList.add('is-dим');
+        else btn.classList.add('is-dim');
       });
     }
 
@@ -643,7 +602,7 @@
           try { renderStarsFor(word); } catch(_){}
           b.classList.add('is-correct');
           answers.querySelectorAll('.answer-btn').forEach(btn => {
-            if (btn !== b) btn.classList.add('is-dим');
+            if (btn !== b) btn.classList.add('is-dim');
             btn.disabled = true;
           });
           afterAnswer(true);

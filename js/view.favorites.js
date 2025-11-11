@@ -241,12 +241,12 @@
     }
 
     function selectRow(tr){
-      const cnt = parseInt(tr.children[2]?.textContent || '0', 10) || 0;
-      tbody.querySelectorAll('tr').forEach(x=>x.classList.remove('is-selected'));
-      tr.classList.add('is-selected');
-      // кнопка активна только если >=4 (как в "Ошибках")
-      setOkEnabled(cnt >= 4);
-    }
+  const cnt = parseInt(tr.children[2]?.textContent || '0', 10) || 0;
+  tbody.querySelectorAll('tr').forEach(x=>x.classList.remove('is-selected'));
+  tr.classList.add('is-selected');
+  // кнопку не отключаем — пусть всегда активна, а проверку <4 обрабатывает сам onClick
+  setOkEnabled(true);
+}
 
     function autoSelectInitialRow(){
       // 1) если есть сохранённый ключ и он присутствует в таблице — выбираем его

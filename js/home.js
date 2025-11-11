@@ -153,7 +153,7 @@
         decks[k].length > 0 &&
         !/^favorites:|^mistakes:/i.test(k)
       );
-      return keys[0] || ACTIVE_KEY_FALLBACK;
+      return keys[0] || firstAvailableBaseDeckKey();
     } catch(_){
       return ACTIVE_KEY_FALLBACK;
     }

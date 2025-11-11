@@ -1,8 +1,9 @@
 /* ==========================================================
  * view.favorites.js — Экран «Избранное» (как в эталонах)
- *  - Без самодельного роутинга. Экспорт: A.ViewFavorites.mount(root)
- *  - Ожидается, что роутер приложения вызывает mount на маршруте 'fav'
- *  - Кнопка ОК → A.Trainer.setDeckKey(key) → A.Router.routeTo('home')
+ *  - Без самодельной регистрации маршрута
+ *  - Экспорт: App.ViewFavorites.mount(root?) — по умолчанию рендер в #app
+ *  - Автопатч роутера из home.js: добавляем кейс 'fav'/'favorites'
+ *  - Кнопка ОК → App.Trainer.setDeckKey(key) → App.Router.routeTo('home')
  * ========================================================== */
 (function(){
   'use strict';
@@ -11,7 +12,7 @@
   /* ---------------------- helpers ---------------------- */
   function getUiLang(){
     const s = (A.settings && (A.settings.lang || A.settings.uiLang)) || 'ru';
-    return (String(s).toLowerCase() === 'uk') ? 'uk' : 'ru';
+    return String(s).toLowerCase() === 'uk' ? 'uk' : 'ru';
   }
   function T(){
     const uk = getUiLang() === 'uk';
@@ -41,6 +42,13 @@
   function langOfKey(key){
     try{ return A.Decks.langOfKey(key); }catch(_){ return 'xx'; }
   }
+  function setFooterActive(action){
+    try{
+      document.querySelectorAll('.app-footer .nav-btn').forEach(b=>b.classList.remove('active'));
+      const btn = document.querySelector(`.app-footer .nav-btn[data-action="${action}"]`);
+      if (btn) btn.classList.add('active');
+    }catch(_){}
+  }
 
   /* ---------------------- favorites key ---------------------- */
   function makeFavKey(baseDeckKey){
@@ -54,7 +62,6 @@
 
   /* ---------------------- data: buckets & preview ---------------------- */
   function listFavoriteBuckets(){
-    // Предпочитаем агрегат от A.Favorites.list()
     if (A.Favorites && typeof A.Favorites.list === 'function'){
       try{
         const ui = getUiLang();
@@ -70,7 +77,7 @@
         }).filter(x=>x.count>0);
       }catch(_){}
     }
-    // Фолбэк: обходим все словари и считаем has()
+    // Fallback
     let keys = [];
     try{ keys = (A.Decks && A.Decks.keys && A.Decks.keys()) || []; }catch(_){ keys = []; }
     const ui = getUiLang();
@@ -96,14 +103,12 @@
   }
 
   function resolveFavoritesDeckByKey(favKey){
-    // Если есть готовый резолвер — используем
     try{
       if (A.Favorites && typeof A.Favorites.resolveDeckForFavoritesKey === 'function'){
         const deck = A.Favorites.resolveDeckForFavoritesKey(favKey);
         if (Array.isArray(deck)) return deck;
       }
     }catch(_){}
-    // Фолбэк: фильтруем по id через Favorites.has()
     const parsed = parseFavKey(favKey);
     if (!parsed) return [];
     let full = [];
@@ -113,11 +118,10 @@
     });
   }
 
-  /* ---------------------- view ---------------------- */
-  function render(root){
+  /* ---------------------- view core ---------------------- */
+  function mount(root){
     const t = T();
-    const app = root || document;
-    const host = app.querySelector('#favorites-view') || app;
+    const host = root || document.getElementById('app') || document.body;
 
     // buckets → byLang
     const buckets = listFavoriteBuckets();
@@ -125,7 +129,7 @@
       (acc[row.baseLang] || (acc[row.baseLang]=[])).push(row);
       return acc;
     }, {});
-    const langs = Object.keys(byLang).sort(); // как в эталоне — алфавитно
+    const langs = Object.keys(byLang).sort(); // как в эталоне
     const savedLang = (A.settings && A.settings.favoritesLang) || null;
     let activeLang = (savedLang && langs.includes(savedLang)) ? savedLang : (langs[0] || 'xx');
 
@@ -234,7 +238,6 @@
           const parsed = parseFavKey(favKey);
           if (parsed && A.Favorites && typeof A.Favorites.clearForDeck === 'function'){
             try{ A.Favorites.clearForDeck(parsed.baseDeckKey); }catch(_){}
-            // локально уменьшаем count до 0 и перерисовываем
             const arr = byLang[activeLang] || [];
             const row = arr.find(x=>x.favoritesKey===favKey);
             if (row) row.count = 0;
@@ -248,7 +251,8 @@
 
     function restoreSelection(){
       if (!selectedKey) return;
-      const row = tbody.querySelector(`tr.dict-row[data-key="${CSS.escape(selectedKey)}"]`);
+      const esc = (window.CSS && CSS.escape) ? CSS.escape(selectedKey) : selectedKey.replace(/"/g, '\\"');
+      const row = tbody.querySelector(`tr.dict-row[data-key="${esc}"]`);
       if (!row || row.classList.contains('is-disabled')){
         selectedKey = '';
         tbody.querySelectorAll('tr.dict-row').forEach(x=>x.classList.remove('is-selected'));
@@ -261,7 +265,7 @@
     function updateOk(){
       if (!okBtn){ return; }
       if (!selectedKey){ okBtn.disabled = true; return; }
-      const row = tbody.querySelector('tr.dict-row.is-selected');
+      const row = tbody.querySelector('tr.dict-row.is-selected') || tbody.querySelector(`tr.dict-row[data-key="${selectedKey}"]`);
       const count = row ? Number(row.getAttribute('data-count')||'0') : 0;
       okBtn.disabled = !(count >= 4);
     }
@@ -319,17 +323,32 @@
     updateOk();
   }
 
-  // Перерисовка при изменениях избранного — только если мы на маршруте fav
-  try{
-    document.addEventListener('favorites:changed', function(){
-      if (A.Router && A.Router.current === 'fav'){
-        const outlet = document.getElementById('favorites-view') || document.querySelector('[data-route="fav"]') || document;
-        render(outlet);
-      }
-    });
-  }catch(_){}
+  /* ---------------------- export ---------------------- */
+  A.ViewFavorites = { mount };
 
-  // Экспорт в стиле эталона
-  A.ViewFavorites = { mount: render };
+  /* ---------------------- Router patch (как в home.js) ---------------------- */
+  function patchRouter(){
+    const R = A.Router;
+    if (!R || R.__favPatched) return;
+    const old = typeof R.routeTo === 'function' ? R.routeTo.bind(R) : null;
+
+    R.routeTo = function(action){
+      if (action === 'fav' || action === 'favorites'){
+        this.current = 'fav';
+        setFooterActive('fav');
+        const app = document.getElementById('app') || document.body;
+        mount(app);
+        return;
+      }
+      if (old) return old(action);
+    };
+    R.__favPatched = true;
+  }
+
+  if (document.readyState !== 'loading'){
+    patchRouter();
+  } else {
+    document.addEventListener('DOMContentLoaded', patchRouter);
+  }
 
 })();

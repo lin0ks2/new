@@ -1,12 +1,8 @@
 /* view.favorites.js — aligned with 'dicts' and 'mistakes' ethalon views.
-   Features:
-   - Group favorites by base deck language; render flag buttons (alphabetical order).
-   - Sort rows by deck name; show flag, name, count, actions.
-   - Selection with .is-selected, persist last selection in A.settings.lastFavoritesKey.
-   - OK enabled only when selected row has count >= 4 (can be adjusted).
-   - Preview modal shows ONLY favorited words for the selected favorites bucket.
-   - Delete clears favorites for that deck.
-   - Robust goHome() similar to ethalon: tries Router, footer nav, then fallback.
+   Routing-ready version:
+   - Registers a 'favorites' route with common Router variants, plus body[data-route] observer fallback.
+   - Footer button with data-action="favorites" will trigger navigation if needed.
+   - On route enter -> renders; on route leave -> disposes.
 */
 
 (function(){
@@ -183,11 +179,17 @@
     try { window.dispatchEvent(new Event('lexitron:route-changed')); } catch(_){}
   }
 
-  // ---- View boot
-  Views.Favorites = function mountFavoritesView(root){
+  // ---- View implementation (mount/dispose)
+  function FavoritesView(root){
     const t = T();
     const app = (root || document);
-    const container = app.querySelector('#favorites-view') || app;
+    // Find or create host container inside root
+    let container = app.querySelector('#favorites-view');
+    if (!container){
+      container = document.createElement('div');
+      container.id = 'favorites-view';
+      app.appendChild(container);
+    }
 
     // gather buckets
     const bucketsRaw = listFavoriteBuckets().map(row => {
@@ -374,17 +376,112 @@
     restoreSelection();
     updateOk();
 
+    // expose destroy
     return {
       dispose(){
-        // no-op; add cleanup if needed
-      }
+        try{ container.innerHTML=''; }catch(_){}
+      },
+      el: container
     };
-  };
+  }
 
-  // Auto-mount if element is present
-  document.addEventListener('DOMContentLoaded', function(){
-    const el = document.getElementById('favorites-view');
-    if (el) Views.Favorites(el);
+  // ---- Routing glue
+  function getRouteOutlet(){
+    // Try common outlets in SPA shell
+    return document.querySelector('[data-route-outlet]')
+        || document.getElementById('route-outlet')
+        || document.querySelector('main.app-main')
+        || document.getElementById('app')
+        || document.body;
+  }
+
+  // Maintain current instance for disposal
+  let current = null;
+
+  function enterFavorites(){
+    // Ensure footer active + body marker
+    setFooterActive('favorites');
+    try{ document.body.setAttribute('data-route','favorites'); }catch(_){}
+    // Mount into outlet
+    const outlet = getRouteOutlet();
+    if (!outlet) return;
+    // Create a scoped root
+    const root = document.createElement('div');
+    root.className = 'route route--favorites';
+    outlet.innerHTML = ''; // simple replace strategy
+    outlet.appendChild(root);
+    current = FavoritesView(root);
+  }
+
+  function leaveFavorites(){
+    if (current && current.dispose) current.dispose();
+    current = null;
+  }
+
+  // Attach to different router shapes
+  function registerRouter(){
+    // 1) Our simple router contract
+    if (A.Router && typeof A.Router.add === 'function'){
+      A.Router.add('favorites', {
+        enter: enterFavorites,
+        leave: leaveFavorites
+      });
+    }
+
+    // 2) window.Router with 'on'/'add' API
+    if (window.Router){
+      if (typeof window.Router.add === 'function'){
+        try{ window.Router.add('favorites', enterFavorites, leaveFavorites); }catch(_){}
+      } else if (typeof window.Router.on === 'function'){
+        try{ window.Router.on('favorites', enterFavorites); }catch(_){}
+        // Some routers support before/after hooks; we best-effort leave on route change
+        try{
+          window.addEventListener('hashchange', function(){
+            const isFav = location.hash && /favorites\b/.test(location.hash);
+            if (!isFav) leaveFavorites();
+          });
+        }catch(_){}
+      }
+    }
+
+    // 3) Fallback: observe body[data-route]
+    const ro = new MutationObserver((muts)=>{
+      for (const m of muts){
+        if (m.type === 'attributes' && m.attributeName === 'data-route'){
+          const route = document.body.getAttribute('data-route');
+          if (route === 'favorites') enterFavorites();
+          else if (current) leaveFavorites();
+        }
+      }
+    });
+    try{ ro.observe(document.body, { attributes:true }); }catch(_){}
+
+    // 4) Footer button safety net
+    document.addEventListener('click', function(e){
+      const btn = e.target && (e.target.closest && e.target.closest('footer .nav-btn[data-action="favorites"]'));
+      if (!btn) return;
+      e.preventDefault();
+      // First try official routers
+      try{
+        if (window.Router && typeof window.Router.routeTo === 'function'){ window.Router.routeTo('favorites'); return; }
+        if (A.Router && typeof A.Router.routeTo === 'function'){ A.Router.routeTo('favorites'); return; }
+      }catch(_){}
+      // Fallback: set body marker (observer will mount view)
+      document.body.setAttribute('data-route','favorites');
+    });
+  }
+
+  // Eager register
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', registerRouter);
+  } else {
+    registerRouter();
+  }
+
+  // Optionally auto-mount if already on the route at load time
+  window.addEventListener('load', function(){
+    const route = document.body.getAttribute('data-route');
+    if (route === 'favorites') enterFavorites();
   });
 
 })();

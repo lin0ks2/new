@@ -308,6 +308,9 @@ const TRAINER_DEFAULT_LEARNED_REPEAT = 'ultra';
     App.state.lastIndex = null;
     if (typeof App.saveState === 'function') App.saveState();
 
+    /* === ДОБАВЛЕНО: сразу подтянуть прогресс в плоские звёзды для тоггла === */
+    try { App.syncStars && App.syncStars('merge'); } catch(_){}
+
     try {
       if (isWholeDeckComplete(key)) {
         document.dispatchEvent(new CustomEvent('lexitron:deck-complete', { detail:{ key } }));

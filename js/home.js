@@ -153,7 +153,7 @@
         decks[k].length > 0 &&
         !/^favorites:|^mistakes:/i.test(k)
       );
-      return keys[0] || firstAvailableBaseDeckKey();
+      return keys[0] || ACTIVE_KEY_FALLBACK;
     } catch(_){
       return ACTIVE_KEY_FALLBACK;
     }
@@ -702,10 +702,7 @@
       const want   = t.checked ? 'hard' : 'normal';
       if (before === want) return;
 
- // ⬇️ ДОБАВЛЕНО: подтянуть прогресс V2 -> старые звезды
-      try { App.syncStars && App.syncStars('merge'); } catch(_){}
-      
-     // дождаться готовности словарей (важно на «чистом старте»)
+      // дождаться готовности словарей (важно на «чистом старте»)
       await waitForDecksReady();
 
       // === корректно определяем прогресс в ТЕКУЩЕМ СЕТЕ без побочных эффектов ===

@@ -64,7 +64,7 @@
 
     const all = gatherFavoriteDecks();
     if (!all.length){
-      app.innerHTML = `<div class="home"><section class="card"><h3>${T.title}</h3><p style="opacity:.7;margin:0;">${T.empty}</p></section></div>`;
+      app.innerHTML = `<div class="home"><section class="card"><h3 style="margin:0 0 6px;">${T.title}</h3><p style="opacity:.7;margin:0;">${T.empty}</p></section></div>`;
       return;
     }
 

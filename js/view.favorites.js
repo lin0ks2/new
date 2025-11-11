@@ -42,7 +42,7 @@
     const out = [];
     try{
       const decks = (window.decks && typeof window.decks==='object') ? window.decks : {};
-      const baseKeys = Object.keys(decks)            // например de_nouns, de_verbs…
+      const baseKeys = Object.keys(decks)
         .filter(k => Array.isArray(decks[k]) && !/^favorites:|^mistakes:/i.test(k));
 
       for (const baseKey of baseKeys){
@@ -118,8 +118,8 @@
         <td>${r.name}</td>
         <td class="t-center">${r.count|0}</td>
         <td class="t-center">
-          <span class="fav-preview" title="${T.preview}" role="button" aria-label="${T.preview}">👁️</span>
-          <span class="fav-delete" title="Delete" role="button" aria-label="Delete" style="margin-left:10px;">🗑️</span>
+          <span class="dicts-preview" title="${T.preview}" role="button" aria-label="${T.preview}">👁️</span>
+          <span class="dicts-delete" title="Delete" role="button" aria-label="Delete" style="margin-left:10px;">🗑️</span>
         </td>
       </tr>`;
     }).join('');
@@ -145,25 +145,23 @@
     const tbody = app.querySelector('.dicts-table tbody');
     if (tbody){
       tbody.addEventListener('click', (e)=>{
-        const eye = e.target.closest('.fav-preview');
+        const eye = e.target.closest('.dicts-preview');
         if (eye){
           e.stopPropagation();
           const tr = eye.closest('tr'); if (!tr) return;
           openPreview(tr.dataset.key);
           return;
         }
-        const del = e.target.closest('.fav-delete');
+        const del = e.target.closest('.dicts-delete');
         if (del){
           e.stopPropagation();
           const tr = del.closest('tr'); if (!tr) return;
           const baseKey = tr.dataset.base;
           const TL = currentTrainLang();
-          // Пытаемся вызвать специализированный очиститель; если его нет — молча игнорим.
           try{
             if (A.Favorites && typeof A.Favorites.clearForDeck==='function'){
               A.Favorites.clearForDeck(TL, baseKey);
             } else if (A.Favorites && typeof A.Favorites.clearActive==='function'){
-              // запасной маршрут (может почистить весь активный язык)
               A.Favorites.clearActive();
             }
           }catch(_){}
@@ -188,15 +186,14 @@
       btnApply.onclick = ()=>{
         const sel = app.querySelector('.dicts-table tbody tr.is-selected');
         if (!sel) return;
-        const key = sel.dataset.key; // уже virtual favorites:<TL>:<baseKey>
+        const key = sel.dataset.key; // favorites:<TL>:<baseKey>
         try{
           if (A.Decks && typeof A.Decks.activateByKey==='function') A.Decks.activateByKey(key);
           if (A.Trainer && typeof A.Trainer.reset==='function') A.Trainer.reset(key);
         }catch(_){}
-        // Возврат на Главную (поведение как у «Словарей/Ошибок»)
         try{
           if (A.UI && typeof A.UI.goHome==='function') A.UI.goHome();
-          else location.hash = ''; // простой fallback
+          else location.hash = '';
         }catch(_){}
       };
     }
@@ -213,7 +210,7 @@
     }).join('');
 
     const wrap = document.createElement('div');
-    wrap.className = 'mmodal';
+    wrap.className = 'mmodal is-open';
     wrap.innerHTML = `
       <div class="mmodal__overlay" role="button" aria-label="Close"></div>
       <div class="mmodal__panel" role="dialog" aria-modal="true" aria-labelledby="mmodalTitle">

@@ -3,6 +3,7 @@
  *  - Режим сложности один на всё приложение (A.settings.level)
  *  - При переключении: кастомный диалог → при согласии очистка ТЕКУЩЕГО СЕТА → запись режима → мягкая перерисовка
  *  - Звёзды: двухфазный рендер (сначала целые, потом половинка наложением)
+ *  - Безопасный выбор дефолтной деки + ожидание готовности словарей
  * ========================================================== */
 (function () {
   'use strict';
@@ -11,6 +12,25 @@
   /* ----------------------------- Константы ----------------------------- */
   const ACTIVE_KEY_FALLBACK = 'de_verbs';
   const SET_SIZE = (A.Config && A.Config.setSizeDefault) || 40;
+
+  /* ---------------------------- Вспомогательное ожидание ---------------------------- */
+  function waitForDecksReady(maxWaitMs = 2000) {
+    return new Promise(resolve => {
+      const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      (function tick(){
+        try{
+          if (A.Decks && typeof A.Decks.resolveDeckByKey === 'function') {
+            const decks = (window.decks && typeof window.decks === 'object') ? window.decks : {};
+            const ok = Object.keys(decks).some(k => Array.isArray(decks[k]) && decks[k].length > 0);
+            if (ok) return resolve(true);
+          }
+        }catch(_){}
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        if (now - t0 > maxWaitMs) return resolve(false);
+        (typeof requestAnimationFrame === 'function' ? requestAnimationFrame : setTimeout)(tick, 16);
+      })();
+    });
+  }
 
   /* ---------------------------- Язык/строки ---------------------------- */
   function getUiLang() {
@@ -114,101 +134,8 @@
     });
   }
 
-  // Переключатель сложности: чисто глобальная логика + очистка ТЕКУЩЕГО СЕТА
-  function bindLevelToggle() {
-    const t = document.getElementById('levelToggle');
-    if (!t) return;
+  /* ------------------------------ Утилиты выбора ключа ------------------------------ */
 
-    t.checked = (getMode() === 'hard'); // checked => hard
-
-    t.addEventListener('change', async () => {
-      const before = getMode();
-      const want   = t.checked ? 'hard' : 'normal';
-      if (before === want) return;
-
-      // === корректно определяем прогресс в ТЕКУЩЕМ СЕТЕ без побочных эффектов ===
-      let hasProgress = false;
-      try {
-        const keyToCheck =
-          (A.Trainer && typeof A.Trainer.getDeckKey === 'function' && A.Trainer.getDeckKey())
-          || ((A.settings && A.settings.lastDeckKey) || null)
-          || ACTIVE_KEY_FALLBACK;
-
-        let slice = [];
-        if (A.Trainer && typeof A.Trainer.getDeckSlice === 'function') {
-          slice = A.Trainer.getDeckSlice(keyToCheck) || [];
-        } else {
-          const full = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
-            ? (A.Decks.resolveDeckByKey(keyToCheck) || [])
-            : [];
-          const idx = (A.Trainer && typeof A.Trainer.getBatchIndex === 'function')
-            ? (A.Trainer.getBatchIndex(keyToCheck) || 0)
-            : 0;
-          const from = idx * SET_SIZE;
-          const to   = Math.min(full.length, (idx + 1) * SET_SIZE);
-          slice = full.slice(from, to);
-        }
-
-        const st = (A.state && A.state.stars) ? A.state.stars : {};
-        for (let i = 0; i < slice.length; i++) {
-          const id = slice[i] && slice[i].id;
-          if (!id) continue;
-          const v = Number(st[starKey(id, keyToCheck)] || 0);
-          if (v > 0) { hasProgress = true; break; }
-        }
-      } catch(_) {}
-
-      if (hasProgress) {
-        const ok = await confirmModeChangeSet();
-        if (!ok) { t.checked = (before === 'hard'); return; }
-        // Очистка ТЕКУЩЕГО СЕТА
-        try {
-          const keyToClear =
-            (A.Trainer && typeof A.Trainer.getDeckKey === 'function' && A.Trainer.getDeckKey())
-            || ((A.settings && A.settings.lastDeckKey) || null)
-            || ACTIVE_KEY_FALLBACK;
-
-          let ids = [];
-          if (A.Trainer && typeof A.Trainer.getDeckSlice === 'function') {
-            const slice = A.Trainer.getDeckSlice(keyToClear) || [];
-            ids = slice.map(w => w && w.id).filter(Boolean);
-          } else {
-            const full = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
-              ? (A.Decks.resolveDeckByKey(keyToClear) || [])
-              : [];
-            const idx = (A.Trainer && typeof A.Trainer.getBatchIndex === 'function')
-              ? (A.Trainer.getBatchIndex(keyToClear) || 0)
-              : 0;
-            const from = idx * SET_SIZE;
-            const to   = Math.min(full.length, (idx + 1) * SET_SIZE);
-            ids = full.slice(from, to).map(w => w && w.id).filter(Boolean);
-          }
-
-          if (A.state && A.state.stars) {
-            ids.forEach(id => { delete A.state.stars[starKey(id, keyToClear)]; });
-            A.saveState && A.saveState(A.state);
-          }
-        } catch(_){}
-      }
-
-      // Переключаем режим (глобально)
-      A.settings = A.settings || {};
-      A.settings.level = want;
-      try { A.saveSettings && A.saveSettings(A.settings); } catch(_){}
-      document.documentElement.dataset.level = want;
-
-      // Мягкая перерисовка
-      try {
-        repaintStarsOnly();
-        renderSets();
-        A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender();
-      } catch(_){}
-    });
-  }
-
-  /* ------------------------------ Утилиты ------------------------------ */
-
-  // ---- Safe key helpers (fallback после удаления виртуальных колод) ----
   function isValidDeckKey(key){
     try {
       if (!key) return false;
@@ -232,24 +159,20 @@
     }
   }
 
-  function safeDeckKey(prefer){
+  function pickDefaultKeyLikeRef() {
     try {
-      if (A.Trainer && typeof A.Trainer.getDeckKey === 'function'){
-        const k = A.Trainer.getDeckKey();
-        if (isValidDeckKey(k)) return k;
+      if (A.Decks && typeof A.Decks.pickDefaultKey === 'function') {
+        const k = A.Decks.pickDefaultKey();
+        if (k) return k;
       }
     } catch(_){}
-
-    if (isValidDeckKey(prefer)) return prefer;
-
-    try {
-      const k = (A.settings && A.settings.lastDeckKey) || null;
-      if (isValidDeckKey(k)) return k;
-    } catch(_){}
-
-    return firstAvailableBaseDeckKey();
+    // резерв: первый реально непустой базовый словарь
+    const decks = (window.decks && typeof window.decks === 'object') ? window.decks : {};
+    const base = Object.keys(decks).find(k => Array.isArray(decks[k]) && decks[k].length >= 4 && !/^favorites:|^mistakes:/i.test(k));
+    return base || firstAvailableBaseDeckKey();
   }
 
+  // favorites:<TL>:<baseKey>  |  mistakes:<baseKey>  -> вернуть baseKey
   function extractBaseFromVirtual(key){
     try {
       if (!key) return null;
@@ -264,16 +187,26 @@
     } catch(_) { return null; }
   }
 
+  // starKey (единственное определение)
   const starKey = (typeof A.starKey === 'function') ? A.starKey : (id, key) => `${key}:${id}`;
 
-  // Чистая версия: не мутирует состояние
+  // ЧИСТАЯ версия: не изменяет состояние, только выбирает лучший ключ
   function activeDeckKey() {
     try {
+      // 1) Trainer держит валидный ключ?
       const kTrainer = (A.Trainer && typeof A.Trainer.getDeckKey === 'function') ? A.Trainer.getDeckKey() : null;
       if (isValidDeckKey(kTrainer)) return kTrainer;
 
+      // 2) предпочитаемый возврат (после виртуальных колод)
       const prefer = (A.settings && A.settings.preferredReturnKey) || null;
-      return safeDeckKey(prefer);
+      if (isValidDeckKey(prefer)) return prefer;
+
+      // 3) lastDeckKey, если валиден
+      const last = (A.settings && A.settings.lastDeckKey) || null;
+      if (isValidDeckKey(last)) return last;
+
+      // 4) «как в референсе»
+      return pickDefaultKeyLikeRef();
     } catch (_){
       return ACTIVE_KEY_FALLBACK;
     }
@@ -492,68 +425,31 @@
   function buildOptions(word) {
     const key = activeDeckKey();
 
-    // Пытаемся безопасно получить варианты через safeOptions
     if (A.UI && typeof A.UI.safeOptions === 'function') {
-      try {
-        const o = A.UI.safeOptions(word, { key, size: 4, t: tWord }) || [];
-        if (Array.isArray(o) && o.length >= 2) return o; // если уже готовы — используем
-      } catch(_) { /* продолжим фоллбеком ниже */ }
+      return A.UI.safeOptions(word, { key, size: 4, t: tWord });
     }
 
-    // Фоллбек: собрать варианты вручную
     const deck = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
       ? (A.Decks.resolveDeckByKey(key) || [])
       : [];
 
     let pool = [];
-    try {
-      if (A.Mistakes && typeof A.Mistakes.getDistractors === 'function') {
-        pool = A.Mistakes.getDistractors(key, word.id) || [];
-      }
-    } catch(_){}
-
-    if (pool.length < 3) {
-      pool = pool.concat(deck.filter(w => String(w.id) !== String(word.id)));
-    }
-
+    try { if (A.Mistakes && typeof A.Mistakes.getDistractors === 'function') pool = A.Mistakes.getDistractors(key, word.id) || []; } catch (_){}
+    if (pool.length < 3) pool = pool.concat(deck.filter(w => String(w.id) !== String(word.id)));
     const wrongs = shuffle(pool).filter(w => String(w.id) !== String(word.id)).slice(0, 3);
     const opts = shuffle(uniqueById([word, ...wrongs])).slice(0, 4);
-
     while (opts.length < 4 && deck.length) {
       const r = deck[Math.floor(Math.random() * deck.length)];
-      if (String(r.id) !== String(word.id) && !opts.some(o => String(o.id) === String(r.id))) {
-        opts.push(r);
-      }
+      if (String(r.id) !== String(word.id) && !opts.some(o => String(o.id) === String(r.id))) opts.push(r);
     }
     return shuffle(opts);
   }
 
   /* ------------------------------- Тренер ------------------------------- */
   function renderTrainer() {
-    const key = activeDeckKey();
-
-    // Пытаемся получить актуальный слайс
-    let slice = (A.Trainer && typeof A.Trainer.getDeckSlice === 'function')
-      ? (A.Trainer.getDeckSlice(key) || [])
-      : [];
-
-    // Фоллбек «прогрева»: если слайс пуст, мягко инициируем тренер и собираем первый батч вручную
-    if (!slice.length) {
-      try { if (A.Trainer && typeof A.Trainer.setDeckKey === 'function') A.Trainer.setDeckKey(key); } catch(_){}
-      try {
-        const full = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
-          ? (A.Decks.resolveDeckByKey(key) || [])
-          : [];
-        const idx  = (A.Trainer && typeof A.Trainer.getBatchIndex === 'function')
-          ? (A.Trainer.getBatchIndex(key) || 0)
-          : 0;
-        const from = idx * SET_SIZE;
-        const to   = Math.min(full.length, (idx + 1) * SET_SIZE);
-        slice = full.slice(from, to);
-      } catch(_){}
-    }
-
-    if (!slice.length) return; // совсем пусто — выходим аккуратно
+    const key   = activeDeckKey();
+    const slice = (A.Trainer && typeof A.Trainer.getDeckSlice === 'function') ? (A.Trainer.getDeckSlice(key) || []) : [];
+    if (!slice.length) return;
 
     const idx = (A.Trainer && typeof A.Trainer.sampleNextIndexWeighted === 'function')
       ? A.Trainer.sampleNextIndexWeighted(slice)
@@ -579,7 +475,7 @@
         favBtn.title = title; favBtn.ariaLabel = title;
       } catch (_){}
       favBtn.onclick = function () {
-        // Запрет добавления во время тренировки Ошибок
+        // NEW: запрет добавления избранного во время тренировки ОШИБОК
         try {
           var __curKey2 = String(key||'');
           var isMistDeck2 = false;
@@ -599,7 +495,7 @@
           }
         } catch(__e) {}
 
-        // Запрет добавления во время тренировки Избранного
+        // Guard: блок добавления в избранное при тренировке "избранного"
         try {
           var __curKey = String(key||'');
           var isFavoritesDeck = (__curKey.indexOf('favorites:')===0) || (__curKey==='fav') || (__curKey==='favorites');
@@ -745,7 +641,7 @@
       if (action === 'dicts') { A.ViewDicts && A.ViewDicts.mount && A.ViewDicts.mount(); return; }
 
       if (action === 'mistakes') {
-        // запоминаем "путь назад"
+        // запоминаем "путь назад" из текущего ключа тренера (базовый, если виртуальный)
         try {
           const curKey = (A.Trainer && typeof A.Trainer.getDeckKey === 'function') ? A.Trainer.getDeckKey()
                         : ((A.settings && A.settings.lastDeckKey) || null);
@@ -795,13 +691,93 @@
     });
   }
 
-  function mountApp() {
+  function bindLevelToggle() {
+    const t = document.getElementById('levelToggle');
+    if (!t) return;
+
+    t.checked = (getMode() === 'hard'); // checked => hard
+
+    t.addEventListener('change', async () => {
+      const before = getMode();
+      const want   = t.checked ? 'hard' : 'normal';
+      if (before === want) return;
+
+      // дождаться готовности словарей (важно на «чистом старте»)
+      await waitForDecksReady();
+
+      // === корректно определяем прогресс в ТЕКУЩЕМ СЕТЕ без побочных эффектов ===
+      let hasProgress = false;
+      let keyToCheck = null;
+      let slice = [];
+
+      try {
+        keyToCheck =
+          (A.Trainer && typeof A.Trainer.getDeckKey === 'function' && A.Trainer.getDeckKey())
+          || ((A.settings && A.settings.lastDeckKey) || null)
+          || pickDefaultKeyLikeRef();
+
+        if (A.Trainer && typeof A.Trainer.getDeckSlice === 'function') {
+          slice = A.Trainer.getDeckSlice(keyToCheck) || [];
+        } else {
+          const full = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
+            ? (A.Decks.resolveDeckByKey(keyToCheck) || [])
+            : [];
+          const idx = (A.Trainer && typeof A.Trainer.getBatchIndex === 'function')
+            ? (A.Trainer.getBatchIndex(keyToCheck) || 0)
+            : 0;
+          const from = idx * SET_SIZE;
+          const to   = Math.min(full.length, (idx + 1) * SET_SIZE);
+          slice = full.slice(from, to);
+        }
+
+        const st = (A.state && A.state.stars) ? A.state.stars : {};
+        for (let i = 0; i < slice.length; i++) {
+          const id = slice[i] && slice[i].id;
+          if (!id) continue;
+          const v = Number(st[starKey(id, keyToCheck)] || 0);
+          if (v > 0) { hasProgress = true; break; }
+        }
+      } catch(_) {}
+
+      if (hasProgress) {
+        const ok = await confirmModeChangeSet();
+        if (!ok) { t.checked = (before === 'hard'); return; }
+
+        // Очистка ТЕКУЩЕГО СЕТА — именно по keyToCheck
+        try {
+          const ids = slice.map(w => w && w.id).filter(Boolean);
+          if (A.state && A.state.stars) {
+            ids.forEach(id => { delete A.state.stars[starKey(id, keyToCheck)]; });
+            A.saveState && A.saveState(A.state);
+          }
+        } catch(_){}
+      }
+
+      // Переключаем режим (глобально)
+      A.settings = A.settings || {};
+      A.settings.level = want;
+      try { A.saveSettings && A.saveSettings(A.settings); } catch(_){}
+      document.documentElement.dataset.level = want;
+
+      // Мягкая перерисовка
+      try {
+        repaintStarsOnly();
+        renderSets();
+        A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender();
+      } catch(_){}
+    });
+  }
+
+  async function mountApp() {
     document.documentElement.dataset.level = getMode();
     setUiLang(getUiLang());
 
     bindLangToggle();
     bindLevelToggle();
     bindFooterNav();
+
+    // ждём словари, потом грузим главную (важно для корректного дефолтного ключа и слайса)
+    await waitForDecksReady();
     Router.routeTo('home');
   }
 

@@ -30,7 +30,7 @@
 
   function favoritesKeyFor(baseDeckKey){ return 'favorites:' + getUiLang() + ':' + baseDeckKey; }
   function resolveNameByKey(key){ try{ return (A.Decks && A.Decks.resolveNameByKey) ? A.Decks.resolveNameByKey(key) : String(key); }catch(_){ return String(key); } }
-  function flagForKey(key){ try{ return (A.Decks && A.Decks.flagForKey) ? (A.Decks.flagForKey(key) || '') : ''; }catch(_){ return '🏳️'; } }
+  function flagForKey(key){ try{ return (A.Decks && A.Decks.flagForKey) ? (A.Decks.flagForKey(key) || '🏳️') : '🏳️'; }catch(_){ return '🏳️'; } }
 
   function listFavoriteDecks(){
     try{
@@ -69,8 +69,7 @@
       <div class="mmodal__panel" role="dialog" aria-modal="true">
         <button class="mmodal__close" aria-label="Close">×</button>
         <div class="mmodal__body">
-          <div class="dicts-header">
-  <h3 style="margin-top:0">${t.preview}</h3>
+          <div class="dicts-header"><h3 style="margin-top:0">${t.preview}</h3>
   <div id="favorites-flags" class="dicts-flags"></div>
 </div>
           <table class="dicts-table">
@@ -92,7 +91,7 @@
 
     const all = listFavoriteDecks();
     
-    // Group by base language (same as mistakes)
+    // === Language grouping and active language (like mistakes) ===
     const byLang = all.reduce((acc, row)=>{
       const lg = row.baseLang || 'xx';
       (acc[lg] || (acc[lg]=[])).push(row);
@@ -100,51 +99,69 @@
     }, {});
     const langs = Object.keys(byLang);
 
-    // Active language: load from settings, else first
     let activeLang = (function(){
       try { return (A.settings && A.settings.favoritesLang) || langs[0] || null; } catch(_) { return langs[0] || null; }
     })();
     if (!activeLang || !byLang[activeLang]) activeLang = langs[0] || null;
+
     const list = activeLang ? byLang[activeLang] : all;
-    if (!all.length){ app.innerHTML = `<div class='home'><section class='card dicts-card'><h3 style='margin:0 0 6px;'>${t.title}</h3><p style='opacity:.7; margin:0;'>${t.empty}</p></section></div>`;
-    // Render language flags (visual + filtering) identical to mistakes
+if (!all.length){ app.innerHTML = `<div class="home"><section class="card dicts-card"><h3 style="margin:0 0 6px;">${t.title}</h3><p style="opacity:.7; margin:0;">${t.empty}</p></section></div>`;
+    // Render language flags and wire clicks
     (function renderFlags(){
-      try{
-        const wrap = document.getElementById('favorites-flags');
-        if (!wrap) return;
-        wrap.innerHTML = (langs.length ? langs : []).map((lg)=>{
-          const sample = (byLang[lg] && byLang[lg][0]) || null;
-          if (!sample) return '';
-          const f = flagForKey(sample.baseDeckKey);
-          const isActive = (lg === activeLang);
-          return `<button type="button" class="dict-flag${isActive?' active':''}" data-lang="${lg}" aria-pressed="${isActive?'true':'false'}">${f}</button>`;
-        }).join('');
-        wrap.querySelectorAll('.dict-flag').forEach(btn=>{
-          btn.addEventListener('click', ()=>{
-            const lg = btn.getAttribute('data-lang');
-            try { (A.settings || (A.settings={})).favoritesLang = lg; } catch(_){}
-            render();
-          });
+      const wrap = document.getElementById('favorites-flags');
+      if (!wrap) return;
+      wrap.innerHTML = (langs.length?langs:[]).map(lg=>{
+        const sample = (byLang[lg] && byLang[lg][0]) || null;
+        if (!sample) return '';
+        const flag = flagForKey(sample.baseDeckKey);
+        const isActive = (lg === activeLang);
+        return `<button type="button" class="dict-flag${isActive?' active':''}" data-lang="${lg}" aria-pressed="${isActive?'true':'false'}">${flag}</button>`;
+      }).join('');
+      wrap.querySelectorAll('.dict-flag').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const lg = btn.getAttribute('data-lang');
+          try { (A.settings || (A.settings = {})).favoritesLang = lg; } catch(_) {}
+          render();
         });
-      }catch(_){}
+      });
     })();
 
-    // Restore last selected favorites row (and persist on click)
-    (function restoreSelection(){
-      try{
-        const lastKey = (A.settings && A.settings.lastFavoritesKey) || null;
-        const rows = Array.from(document.querySelectorAll('tr.dict-row'));
-        let set = false;
-        if (lastKey){
-          const tr = rows.find(r => r.getAttribute('data-key') === lastKey);
-          if (tr){ tr.classList.add('is-selected'); set = true; }
+    // Ensure initial selection based on settings or first row
+    (function ensureInitialSelection(){
+      let lastKey = null;
+      try { lastKey = (A.settings && A.settings.lastFavoritesKey) || null; } catch(_) {}
+      const rows = Array.from(app.querySelectorAll('tr.dict-row'));
+      if (!rows.length) return;
+      let target = lastKey ? rows.find(r=>r.getAttribute('data-key')===lastKey) : null;
+      if (!target) target = rows[0];
+      rows.forEach(r=>r.classList.toggle('is-selected', r===target));
+      try { (A.settings || (A.settings={})).lastFavoritesKey = target.getAttribute('data-key'); } catch(_) {}
+      try { updateOk(); } catch(_){}
+    })();
+
+    // Update preview/delete handlers to new selectors
+    app.querySelectorAll('.mistakes-preview').forEach(btn=>{
+      btn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const favKey = btn.closest('tr').getAttribute('data-key');
+        openPreview(favKey);
+      });
+    });
+    app.querySelectorAll('.mistakes-delete').forEach(btn=>{
+      btn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const favKey = btn.closest('tr').getAttribute('data-key');
+        const m = String(favKey||'').match(/^favorites:(ru|uk):(.+)$/i);
+        const base = m ? m[2] : null;
+        if (base && A.Favorites && typeof A.Favorites.clearForDeck === 'function'){
+          try{ A.Favorites.clearForDeck(base); }catch(_){}
+          render();
         }
-        if (!set && rows.length){ rows[0].classList.add('is-selected'); }
-      }catch(_){}
-    })();
-     return; }
+      });
+    });
+ return; }
 
-    
+    const headerFlag = flagForKey(all[0].baseDeckKey);
 
     const body = list.map(item=>{
       const flag = flagForKey(item.baseDeckKey);
@@ -187,7 +204,8 @@
       if (!el) return;
       if (!selectedKey){ el.disabled = true; return; }
       const row = app.querySelector('tr.dict-row.is-selected') || app.querySelector(`tr.dict-row[data-key="${selectedKey}"]`);
-      const count = row ? Number((row.querySelector('.c-count')||{}).textContent || '0') : 0;
+      const cell = row ? row.querySelector('td:nth-child(3)') : null;
+      const count = cell ? Number(cell.textContent || '0') : 0;
       el.disabled = !(count >= 4);
     }
 
@@ -197,7 +215,7 @@
         if (tgt && (tgt.closest('.mistakes-preview') || tgt.closest('.mistakes-delete'))) return;
         selectedKey = tr.getAttribute('data-key');
         app.querySelectorAll('tr.dict-row').forEach(x=>x.classList.toggle('is-selected', x===tr));
-        try { (A.settings || (A.settings={})).lastFavoritesKey = selectedKey; } catch(_){}
+        try { (A.settings || (A.settings = {})).lastFavoritesKey = selectedKey; } catch(_) {}
         updateOk();
       });
     });
@@ -227,7 +245,8 @@
       ok.addEventListener('click', ()=>{
         if (!selectedKey) return;
         const row = app.querySelector('tr.dict-row.is-selected') || app.querySelector(`tr.dict-row[data-key="${selectedKey}"]`);
-        const count = row ? Number((row.querySelector('.c-count')||{}).textContent || '0') : 0;
+        const cell = row ? row.querySelector('td:nth-child(3)') : null;
+      const count = cell ? Number(cell.textContent || '0') : 0;
         if (count < 4) return;
         try{ A.Trainer && A.Trainer.setDeckKey && A.Trainer.setDeckKey(selectedKey); }catch(_){}
         try{ A.Router && A.Router.routeTo && A.Router.routeTo('home'); }catch(_){}

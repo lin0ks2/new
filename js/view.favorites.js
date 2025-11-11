@@ -1,9 +1,5 @@
 /* ==========================================================
  * view.favorites.js — Экран «Избранное» в стиле «Мои ошибки»
- *  - Флаги-языки для фильтра
- *  - Выбор строки + кнопка ОК для старта тренировки
- *  - 👁️ — предпросмотр, 🗑️ — очистка избранного по базе
- *  - Тренировка доступна только если ≥4 слов
  * ========================================================== */
 (function(){
   'use strict';
@@ -49,7 +45,7 @@
         const favKey = `favorites:${TL}:${baseKey}`;
         const name = (A.Decks && A.Decks.resolveNameByKey) ? A.Decks.resolveNameByKey(favKey) : favKey;
         const deck = (A.Decks && A.Decks.resolveDeckByKey) ? (A.Decks.resolveDeckByKey(favKey) || []) : [];
-        if (!deck.length) continue; // показываем только те базы, где есть избранное для TL
+        if (!deck.length) continue;
 
         const baseLang = (A.Decks && (A.Decks.langOfFavoritesKey||A.Decks.langOfKey))
           ? (A.Decks.langOfFavoritesKey ? A.Decks.langOfFavoritesKey(favKey) : A.Decks.langOfKey(favKey))
@@ -72,7 +68,7 @@
       return;
     }
 
-    // группируем по языку базового словаря (как на «Словарях»/«Ошибках»)
+    // группировка по языку базового словаря
     const byLang = all.reduce((acc,row)=>{
       const lg = row.baseLang || 'xx';
       (acc[lg]||(acc[lg]=[])).push(row);
@@ -80,7 +76,7 @@
     }, {});
     const langs = Object.keys(byLang);
 
-    // активный фильтр и его сохранение — используем тот же settings.dictsLangFilter
+    // фильтр флажками
     let activeLang = (A.settings && A.settings.dictsLangFilter) || null;
     if (activeLang && !byLang[activeLang]) activeLang = null;
 
@@ -105,24 +101,22 @@
         btn.textContent = FLAG[lang] || lang.toUpperCase();
         btn.onclick = ()=>{
           activeLang = (activeLang===lang) ? null : lang;
-          saveFilter(); render(); // полный перерендер секции
+          saveFilter(); render();
         };
         box.appendChild(btn);
       });
     }
 
-    const rows = (activeLang ? byLang[activeLang] : all).map(r=>{
-      const disable = (r.count|0) < 4 ? 'disabled' : '';
-      return `<tr data-key="${r.key}" data-base="${r.baseKey}">
+    const rows = (activeLang ? byLang[activeLang] : all).map(r=>`
+      <tr data-key="${r.key}" data-base="${r.baseKey}">
         <td class="t-center">${r.flag}</td>
         <td>${r.name}</td>
         <td class="t-center">${r.count|0}</td>
         <td class="t-center">
-          <span class="dicts-preview" title="${T.preview}" role="button" aria-label="${T.preview}">👁️</span>
-          <span class="dicts-delete" title="Delete" role="button" aria-label="Delete" style="margin-left:10px;">🗑️</span>
+          <span class="dicts-preview" title="${T.preview}" role="button">👁️</span>
+          <span class="dicts-delete" title="Delete" role="button" style="margin-left:10px;">🗑️</span>
         </td>
-      </tr>`;
-    }).join('');
+      </tr>`).join('');
 
     app.innerHTML = `
       <div class="home">
@@ -131,9 +125,7 @@
             <h3>${T.title}</h3>
             <div id="fav-flags" class="dicts-flags"></div>
           </div>
-          <table class="dicts-table">
-            <tbody>${rows}</tbody>
-          </table>
+          <table class="dicts-table"><tbody>${rows}</tbody></table>
           <div class="dicts-actions">
             <button type="button" class="btn-primary" id="fav-apply" disabled>${T.ok}</button>
           </div>
@@ -181,30 +173,42 @@
       });
     }
 
+    // === кнопка ОК: как в "Моих ошибках" ===
     const btnApply = app.querySelector('#fav-apply');
     if (btnApply){
       btnApply.onclick = ()=>{
         const sel = app.querySelector('.dicts-table tbody tr.is-selected');
         if (!sel) return;
-        const key = sel.dataset.key; // favorites:<TL>:<baseKey>
-        try{
-          if (A.Decks && typeof A.Decks.activateByKey==='function') A.Decks.activateByKey(key);
-          if (A.Trainer && typeof A.Trainer.reset==='function') A.Trainer.reset(key);
-        }catch(_){}
-        try{
-          if (A.UI && typeof A.UI.goHome==='function') A.UI.goHome();
-          else location.hash = '';
-        }catch(_){}
+        const key = sel.dataset.key;
+        const cnt = parseInt(sel.children[2]?.textContent || '0', 10) || 0;
+
+        // если <4 слов — только предпросмотр
+        if (cnt < 4){
+          openPreview(key);
+          return;
+        }
+
+        // сохраняем и запускаем тренировку
+        try {
+          A.settings = A.settings || {};
+          A.settings.lastFavoritesKey = key;
+          if (typeof A.saveSettings === 'function') A.saveSettings(A.settings);
+        } catch(_) {}
+
+        try { A.Trainer && A.Trainer.setDeckKey && A.Trainer.setDeckKey(key); } catch(_){}
+        try { A.Router  && A.Router.routeTo    && A.Router.routeTo('home'); }   catch(_){}
       };
     }
   }
 
-  /* -------- модальное превью избранного набора -------- */
+  /* -------- модальное превью -------- */
   function openPreview(favKey){
     const T = t();
-    const deck = (A.Decks && A.Decks.resolveDeckByKey) ? (A.Decks.resolveDeckByKey(favKey) || []) : [];
+    const deck = (A.Decks && A.Decks.resolveDeckByKey)
+      ? (A.Decks.resolveDeckByKey(favKey) || [])
+      : [];
     const ui = getUiLang();
-    const rows = deck.slice(0, 150).map((w,i)=>{
+    const rows = deck.slice(0,150).map((w,i)=>{
       const tr = (ui==='uk') ? (w.uk || w.ru || '') : (w.ru || w.uk || '');
       return `<tr><td class="t-center">${i+1}</td><td>${w.word||''}</td><td>${tr}</td></tr>`;
     }).join('');

@@ -116,56 +116,99 @@
 
   // Переключатель сложности: чисто глобальная логика + очистка ТЕКУЩЕГО СЕТА
   function bindLevelToggle() {
-    const t = document.getElementById('levelToggle');
-    if (!t) return;
+  const t = document.getElementById('levelToggle');
+  if (!t) return;
 
-    t.checked = (getMode() === 'hard'); // checked => hard
+  t.checked = (getMode() === 'hard'); // checked => hard
 
-    t.addEventListener('change', async () => {
-      const before = getMode();
-      const want   = t.checked ? 'hard' : 'normal';
-      if (before === want) return;
+  t.addEventListener('change', async () => {
+    const before = getMode();
+    const want   = t.checked ? 'hard' : 'normal';
+    if (before === want) return;
 
-      // Есть ли прогресс в ТЕКУЩЕМ СЕТЕ?
-      let hasProgress = false;
-      try {
-        const key = activeDeckKey();
-        const ids = getCurrentSliceWordIds(key);
-        const st  = (A.state && A.state.stars) ? A.state.stars : {};
-        for (let i = 0; i < ids.length; i++) {
-          if (Number(st[starKey(ids[i], key)] || 0) > 0) { hasProgress = true; break; }
-        }
-      } catch (_) {}
+    // === ПОЧИНЕНО: корректно определяем прогресс в ТЕКУЩЕМ СЕТЕ без побочных эффектов ===
+    let hasProgress = false;
+    try {
+      // 1) ключ берём у Тренера (без мутаций):
+      const keyToCheck =
+        (A.Trainer && typeof A.Trainer.getDeckKey === 'function' && A.Trainer.getDeckKey())
+        || ((A.settings && A.settings.lastDeckKey) || null)
+        || ACTIVE_KEY_FALLBACK;
 
-      if (hasProgress) {
-        const ok = await confirmModeChangeSet();
-        if (!ok) { t.checked = (before === 'hard'); return; }
-        // Очистка ТЕКУЩЕГО СЕТА
-        try {
-          const key = activeDeckKey();
-          const ids = getCurrentSliceWordIds(key);
-          if (A.state && A.state.stars) {
-            ids.forEach(id => { delete A.state.stars[starKey(id, key)]; });
-            A.saveState && A.saveState(A.state);
-          }
-        } catch(_){}
+      // 2) текущий слайс именно по ЭТОМУ ключу:
+      let slice = [];
+      if (A.Trainer && typeof A.Trainer.getDeckSlice === 'function') {
+        slice = A.Trainer.getDeckSlice(keyToCheck) || [];
+      } else {
+        // резервный путь: считаем слайс вручную, НЕ вызывая activeDeckKey() (без побочек)
+        const full = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
+          ? (A.Decks.resolveDeckByKey(keyToCheck) || [])
+          : [];
+        const idx = (A.Trainer && typeof A.Trainer.getBatchIndex === 'function')
+          ? (A.Trainer.getBatchIndex(keyToCheck) || 0)
+          : 0;
+        const from = idx * SET_SIZE;
+        const to   = Math.min(full.length, (idx + 1) * SET_SIZE);
+        slice = full.slice(from, to);
       }
 
-      // Переключаем режим (глобально)
-      A.settings = A.settings || {};
-      A.settings.level = want;
-      try { A.saveSettings && A.saveSettings(A.settings); } catch(_){}
-      document.documentElement.dataset.level = want;
+      // 3) проверяем звёзды по ТОМУ ЖЕ ключу:
+      const st = (A.state && A.state.stars) ? A.state.stars : {};
+      for (let i = 0; i < slice.length; i++) {
+        const id = slice[i] && slice[i].id;
+        if (!id) continue;
+        const v = Number(st[starKey(id, keyToCheck)] || 0);
+        if (v > 0) { hasProgress = true; break; }
+      }
+    } catch(_) {}
 
-      // Мягкая перерисовка
+    if (hasProgress) {
+      const ok = await confirmModeChangeSet();
+      if (!ok) { t.checked = (before === 'hard'); return; }
+      // Очистка ТЕКУЩЕГО СЕТА — именно по тому ключу, где был прогресс:
       try {
-        repaintStarsOnly();
-        renderSets();
-        A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender();
-      } catch(_){}
-    });
-  }
+        const keyToClear =
+          (A.Trainer && typeof A.Trainer.getDeckKey === 'function' && A.Trainer.getDeckKey())
+          || ((A.settings && A.settings.lastDeckKey) || null)
+          || ACTIVE_KEY_FALLBACK;
 
+        let ids = [];
+        if (A.Trainer && typeof A.Trainer.getDeckSlice === 'function') {
+          const slice = A.Trainer.getDeckSlice(keyToClear) || [];
+          ids = slice.map(w => w && w.id).filter(Boolean);
+        } else {
+          const full = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
+            ? (A.Decks.resolveDeckByKey(keyToClear) || [])
+            : [];
+          const idx = (A.Trainer && typeof A.Trainer.getBatchIndex === 'function')
+            ? (A.Trainer.getBatchIndex(keyToClear) || 0)
+            : 0;
+          const from = idx * SET_SIZE;
+          const to   = Math.min(full.length, (idx + 1) * SET_SIZE);
+          ids = full.slice(from, to).map(w => w && w.id).filter(Boolean);
+        }
+
+        if (A.state && A.state.stars) {
+          ids.forEach(id => { delete A.state.stars[starKey(id, keyToClear)]; });
+          A.saveState && A.saveState(A.state);
+        }
+      } catch(_){}
+    }
+
+    // Переключаем режим (глобально)
+    A.settings = A.settings || {};
+    A.settings.level = want;
+    try { A.saveSettings && A.saveSettings(A.settings); } catch(_){}
+    document.documentElement.dataset.level = want;
+
+    // Мягкая перерисовка
+    try {
+      repaintStarsOnly();
+      renderSets();
+      A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender();
+    } catch(_){}
+  });
+}
   /* ------------------------------ Утилиты ------------------------------ */
 
   // ---- Safe key helpers (fallback после удаления виртуальных колод) ----

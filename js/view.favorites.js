@@ -132,7 +132,6 @@
             <div id="fav-flags" class="dicts-flags"></div>
           </div>
           <table class="dicts-table">
-            <thead><tr><th></th><th>${T.title}</th><th class="t-center">${T.cnt}</th><th class="t-center">${T.act}</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
           <div class="dicts-actions">

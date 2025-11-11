@@ -135,6 +135,8 @@
     renderFlags();
 
     const tbody = app.querySelector('.dicts-table tbody');
+
+    // ---- делегаты таблицы
     if (tbody){
       tbody.addEventListener('click', (e)=>{
         const eye = e.target.closest('.dicts-preview');
@@ -164,40 +166,91 @@
         // выбор строки
         const tr = e.target.closest('tr');
         if (tr){
-          tbody.querySelectorAll('tr').forEach(x=>x.classList.remove('is-selected'));
-          tr.classList.add('is-selected');
-          const cnt = parseInt(tr.children[2].textContent||'0',10) || 0;
-          const ok = app.querySelector('#fav-apply');
-          if (ok) ok.disabled = (cnt < 4);
+          selectRow(tr);
         }
       });
     }
+
+    // ---- автоселект как в "Моих ошибках"
+    autoSelectInitialRow();
 
     // === кнопка ОК: как в "Моих ошибках" ===
     const btnApply = app.querySelector('#fav-apply');
     if (btnApply){
       btnApply.onclick = ()=>{
-        const sel = app.querySelector('.dicts-table tbody tr.is-selected');
+        // если почему-то нет выделенной — берём первую
+        let sel = app.querySelector('.dicts-table tbody tr.is-selected');
+        if (!sel) sel = app.querySelector('.dicts-table tbody tr');
         if (!sel) return;
+
         const key = sel.dataset.key;
         const cnt = parseInt(sel.children[2]?.textContent || '0', 10) || 0;
 
-        // если <4 слов — только предпросмотр
+        // <4 — только предпросмотр
         if (cnt < 4){
           openPreview(key);
           return;
         }
 
-        // сохраняем и запускаем тренировку
+        // запомним и универсально запустим тренировку
         try {
           A.settings = A.settings || {};
           A.settings.lastFavoritesKey = key;
           if (typeof A.saveSettings === 'function') A.saveSettings(A.settings);
-        } catch(_) {}
+        } catch(_){}
 
-        try { A.Trainer && A.Trainer.setDeckKey && A.Trainer.setDeckKey(key); } catch(_){}
-        try { A.Router  && A.Router.routeTo    && A.Router.routeTo('home'); }   catch(_){}
+        launchTraining(key);
       };
+    }
+
+    // ---------- helpers (внутри render) ----------
+    function setOkEnabled(enabled){
+      const ok = app.querySelector('#fav-apply');
+      if (ok) ok.disabled = !enabled;
+    }
+
+    function selectRow(tr){
+      const cnt = parseInt(tr.children[2]?.textContent || '0', 10) || 0;
+      tbody.querySelectorAll('tr').forEach(x=>x.classList.remove('is-selected'));
+      tr.classList.add('is-selected');
+      // кнопка активна только если >=4 (как в "Ошибках")
+      setOkEnabled(cnt >= 4);
+    }
+
+    function autoSelectInitialRow(){
+      // 1) если есть сохранённый ключ и он присутствует в таблице — выбираем его
+      let key = null;
+      try { key = A.settings && A.settings.lastFavoritesKey; } catch(_){}
+      let tr = key ? tbody.querySelector(`tr[data-key="${CSS.escape(key)}"]`) : null;
+
+      // 2) иначе — первая строка
+      if (!tr) tr = tbody.querySelector('tr');
+      if (!tr) return;
+
+      selectRow(tr);
+    }
+
+    function launchTraining(key){
+      // 1) как в других вью: общий стартер, если есть
+      if (A.UI && typeof A.UI.startTrainingWithKey === 'function'){
+        A.UI.startTrainingWithKey(key);
+        return;
+      }
+      if (A.Home && typeof A.Home.startTrainingWithKey === 'function'){
+        A.Home.startTrainingWithKey(key);
+        return;
+      }
+      // 2) фоллбэк: проставить ключ тренеру и уйти на home
+      if (A.Trainer && typeof A.Trainer.setDeckKey === 'function'){
+        A.Trainer.setDeckKey(key);
+      }
+      if (A.Router && typeof A.Router.routeTo === 'function'){
+        A.Router.routeTo('home');
+      } else if (A.UI && typeof A.UI.goHome === 'function'){
+        A.UI.goHome();
+      } else {
+        location.hash = '';
+      }
     }
   }
 

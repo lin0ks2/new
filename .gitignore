@@ -1,0 +1,81 @@
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+
+# --- Node / package managers ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+# --- Build / dist outputs (adjust to your tooling) ---
+dist/
+build/
+out/
+storybook-static/
+.storybook-out/
+
+# Vite / Rollup / Webpack caches
+.vite/
+**/.vite/
+.esbuild/
+.rollup.cache/
+.parcel-cache/
+.cache/
+.cache-loader/
+.tmp/
+tmp/
+temp/
+
+# Next / Nuxt / SvelteKit (in case of future migrations)
+.next/
+.nuxt/
+.svelte-kit/
+
+# --- Test / coverage ---
+coverage/
+.nyc_output/
+*.lcov
+
+# --- TypeScript (if present) ---
+*.tsbuildinfo
+
+# --- Env & secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Editors / IDEs ---
+.vscode/
+.idea/
+*.iml
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*.swo
+
+# --- PWA / Workbox generated artifacts (built files, not sources) ---
+**/service-worker.js
+**/sw.js
+**/sw-*.js
+**/workbox-*.js
+**/workbox-*.mjs
+**/precache-manifest*.js
+**/.workbox-cache/
+
+# --- Artifacts / archives ---
+*.log
+*.tar
+*.tgz
+*.zip
+*.gz
+
+# --- Source maps from build outputs only ---
+dist/**/*.map
+build/**/*.map
+out/**/*.map

@@ -731,18 +731,15 @@
       const want   = t.checked ? 'hard' : 'normal';
       if (before === want) return;
 
-      // дождаться готовности словарей (важно на «чистом старте»)
       await waitForDecksReady();
-      // инициализация активного ключа от StartupManager
       await waitForStartupReady();
 
-      // === корректно определяем прогресс в ТЕКУЩЕМ СЕТЕ без побочных эффектов ===
       let hasProgress = false;
       let keyToCheck = null;
       let slice = [];
-      let idx = 0;
 
       try {
+        const A = window.App || {};
         keyToCheck =
           (A.Trainer && typeof A.Trainer.getDeckKey === 'function' && A.Trainer.getDeckKey())
           || ((A.settings && A.settings.lastDeckKey) || null)
@@ -750,32 +747,46 @@
 
         if (A.Trainer && typeof A.Trainer.getDeckSlice === 'function') {
           slice = A.Trainer.getDeckSlice(keyToCheck) || [];
-          idx = (A.Trainer && typeof A.Trainer.getBatchIndex === 'function') ? (A.Trainer.getBatchIndex(keyToCheck) || 0) : 0;
         } else {
           const full = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
             ? (A.Decks.resolveDeckByKey(keyToCheck) || [])
             : [];
-          idx = (A.Trainer && typeof A.Trainer.getBatchIndex === 'function')
-            ? (A.Trainer.getBatchIndex(keyToCheck) || 0)
-            : 0;
-          const from = idx * SET_SIZE;
-          const to   = Math.min(full.length, (idx + 1) * SET_SIZE);
+          const idx0 = (A.Sets && typeof A.Sets.getActiveSetIndex === 'function') ? (A.Sets.getActiveSetIndex()|0)
+                    : ((A.Trainer && typeof A.Trainer.getBatchIndex === 'function') ? (A.Trainer.getBatchIndex(keyToCheck) || 0) : 0);
+          const from = idx0 * SET_SIZE;
+          const to   = Math.min(full.length, (idx0 + 1) * SET_SIZE);
           slice = full.slice(from, to);
         }
 
-        // читаем прогресс из LS и дублируем проверкой по оперативному состоянию
-        const bucket = readProgressBucket(keyToCheck, idx);
-        for (let i = 0; i < slice.length; i++) {
-          const id = slice[i] && slice[i].id;
-          if (!id) continue;
-          const sk = `${keyToCheck}:${id}`;
-          const vLS  = Number(bucket[sk] || 0);
-          let vMem = 0;
-          try {
-            if (typeof getStars === 'function') vMem = Number(getStars(id) || 0);
-            else if (A.state && A.state.stars) vMem = Number(A.state.stars[sk] || 0);
-          } catch(_){}
-          if ((vLS > 0) || (vMem > 0)) { hasProgress = true; break; }
+        const indices = Array.from(new Set([
+          (A.Sets && typeof A.Sets.getActiveSetIndex === 'function') ? (A.Sets.getActiveSetIndex()|0) : 0,
+          (A.Trainer && typeof A.Trainer.getBatchIndex === 'function') ? (A.Trainer.getBatchIndex(keyToCheck)||0) : 0
+        ]));
+
+        const sliceIds = new Set(slice.map(w => w && w.id).filter(Boolean));
+
+        // memory-first
+        try {
+          const stars = (A.state && A.state.stars) ? A.state.stars : {};
+          for (const [sk, v] of Object.entries(stars)) {
+            if (Number(v) <= 0) continue;
+            if (!sk.startsWith(`${keyToCheck}:`)) continue;
+            const id = +sk.split(':')[1];
+            if (sliceIds.has(id)) { hasProgress = true; break; }
+          }
+        } catch(_){}
+
+        if (!hasProgress) {
+          let st = {};
+          try { st = JSON.parse(localStorage.getItem('progress.v2') || '{}'); } catch(_){}
+          for (const si of indices) {
+            const bucket = (((st.stars||{})[keyToCheck]||{})[String(si)]) || {};
+            for (const id of sliceIds) {
+              const sk = `${keyToCheck}:${id}`;
+              if (Number(bucket[sk] || 0) > 0) { hasProgress = true; break; }
+            }
+            if (hasProgress) break;
+          }
         }
       } catch(_){}
 
@@ -783,23 +794,22 @@
         const ok = await confirmModeChangeSet();
         if (!ok) { t.checked = (before === 'hard'); return; }
 
-        // Очистка ТЕКУЩЕГО СЕТА — именно по keyToCheck
         try {
-          const ids = slice.map(w => w && w.id).filter(Boolean);
+          const A = window.App || {};
+          const ids = (slice || []).map(w => w && w.id).filter(Boolean);
           if (A.state && A.state.stars) {
-            ids.forEach(id => { delete A.state.stars[starKey(id, keyToCheck)]; });
+            ids.forEach(id => { delete A.state.stars[`${keyToCheck}:${id}`]; });
             A.saveState && A.saveState(A.state);
           }
         } catch(_){}
       }
 
-      // Переключаем режим (глобально)
+      const A = window.App || {};
       A.settings = A.settings || {};
       A.settings.level = want;
       try { A.saveSettings && A.saveSettings(A.settings); } catch(_){}
       document.documentElement.dataset.level = want;
 
-      // Мягкая перерисовка
       try {
         repaintStarsOnly();
         renderSets();

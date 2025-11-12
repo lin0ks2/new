@@ -20,35 +20,7 @@
       (function tick(){
         try{
           if (A.Decks && typeof A.Decks.resolveDeckByKey === 'function') {
-            const decks = (window.decks && typeof window.decks === 'object') ? window.decks : {}
-  /* ---------------------------- Ожидание старта (StartupManager) ---------------------------- */
-  function waitForStartupReady(maxWaitMs = 1500) {
-    return new Promise(resolve => {
-      const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-      (function tick(){
-        try{
-          if (window.App && App.dictRegistry && App.dictRegistry.activeKey) return resolve(true);
-        }catch(_){}
-        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-        if (now - t0 > maxWaitMs) return resolve(false);
-        setTimeout(tick, 30);
-      })();
-    });
-  }
-
-  /* ---------------------------- Чтение bucket прогресса (progress.v2) ---------------------------- */
-  function readProgressBucket(dictKey, setIndex){
-    try{
-      const raw = localStorage.getItem('progress.v2');
-      if (!raw) return {};
-      const st = JSON.parse(raw);
-      const stars = (st && st.stars) ? st.stars : {};
-      const byDict = stars[String(dictKey)] || {};
-      const bucket = byDict[String(setIndex)] || {};
-      return (bucket && typeof bucket === 'object') ? bucket : {};
-    }catch(_){ return {}; }
-  }
-;
+            const decks = (window.decks && typeof window.decks === 'object') ? window.decks : {};
             const ok = Object.keys(decks).some(k => Array.isArray(decks[k]) && decks[k].length > 0);
             if (ok) return resolve(true);
           }
@@ -719,7 +691,6 @@
     });
   }
 
-  
   function bindLevelToggle() {
     const t = document.getElementById('levelToggle');
     if (!t) return;
@@ -732,15 +703,15 @@
       const want   = t.checked ? 'hard' : 'normal';
       if (before === want) return;
 
+      // дождаться готовности словарей (важно на «чистом старте»)
       await waitForDecksReady();
-      await waitForStartupReady();
 
+      // === корректно определяем прогресс в ТЕКУЩЕМ СЕТЕ без побочных эффектов ===
       let hasProgress = true;
       let keyToCheck = null;
       let slice = [];
 
       try {
-        const A = window.App || {};
         keyToCheck =
           (A.Trainer && typeof A.Trainer.getDeckKey === 'function' && A.Trainer.getDeckKey())
           || ((A.settings && A.settings.lastDeckKey) || null)
@@ -752,65 +723,44 @@
           const full = (A.Decks && typeof A.Decks.resolveDeckByKey === 'function')
             ? (A.Decks.resolveDeckByKey(keyToCheck) || [])
             : [];
-          const idx0 = (A.Sets && typeof A.Sets.getActiveSetIndex === 'function') ? (A.Sets.getActiveSetIndex()|0)
-                    : ((A.Trainer && typeof A.Trainer.getBatchIndex === 'function') ? (A.Trainer.getBatchIndex(keyToCheck) || 0) : 0);
-          const from = idx0 * SET_SIZE;
-          const to   = Math.min(full.length, (idx0 + 1) * SET_SIZE);
+          const idx = (A.Trainer && typeof A.Trainer.getBatchIndex === 'function')
+            ? (A.Trainer.getBatchIndex(keyToCheck) || 0)
+            : 0;
+          const from = idx * SET_SIZE;
+          const to   = Math.min(full.length, (idx + 1) * SET_SIZE);
           slice = full.slice(from, to);
         }
 
-        const indices = Array.from(new Set([
-          (A.Sets && typeof A.Sets.getActiveSetIndex === 'function') ? (A.Sets.getActiveSetIndex()|0) : 0,
-          (A.Trainer && typeof A.Trainer.getBatchIndex === 'function') ? (A.Trainer.getBatchIndex(keyToCheck)||0) : 0
-        ]));
-
-        const sliceIds = new Set(slice.map(w => w && w.id).filter(Boolean));
-
-        // memory-first
-        try {
-          const stars = (A.state && A.state.stars) ? A.state.stars : {};
-          for (const [sk, v] of Object.entries(stars)) {
-            if (Number(v) <= 0) continue;
-            if (!sk.startsWith(`${keyToCheck}:`)) continue;
-            const id = +sk.split(':')[1];
-            if (sliceIds.has(id)) { hasProgress = true; break; }
-          }
-        } catch(_){}
-
-        if (!hasProgress) {
-          let st = {};
-          try { st = JSON.parse(localStorage.getItem('progress.v2') || '{}'); } catch(_){}
-          for (const si of indices) {
-            const bucket = (((st.stars||{})[keyToCheck]||{})[String(si)]) || {};
-            for (const id of sliceIds) {
-              const sk = `${keyToCheck}:${id}`;
-              if (Number(bucket[sk] || 0) > 0) { hasProgress = true; break; }
-            }
-            if (hasProgress) break;
-          }
+        const st = (A.state && A.state.stars) ? A.state.stars : {};
+        for (let i = 0; i < slice.length; i++) {
+          const id = slice[i] && slice[i].id;
+          if (!id) continue;
+          const v = Number(st[starKey(id, keyToCheck)] || 0);
+          if (v > 0) { hasProgress = true; break; }
         }
-      } catch(_){}
+      } catch(_) {}
 
       if (hasProgress) {
         const ok = await confirmModeChangeSet();
         if (!ok) { t.checked = (before === 'hard'); return; }
 
+        // Очистка ТЕКУЩЕГО СЕТА — именно по keyToCheck
         try {
-          const A = window.App || {};
-          const ids = (slice || []).map(w => w && w.id).filter(Boolean);
+          const ids = slice.map(w => w && w.id).filter(Boolean);
           if (A.state && A.state.stars) {
-            ids.forEach(id => { delete A.state.stars[`${keyToCheck}:${id}`]; });
+            ids.forEach(id => { delete A.state.stars[starKey(id, keyToCheck)]; });
             A.saveState && A.saveState(A.state);
           }
         } catch(_){}
       }
 
-      const A = window.App || {};
+      // Переключаем режим (глобально)
       A.settings = A.settings || {};
       A.settings.level = want;
       try { A.saveSettings && A.saveSettings(A.settings); } catch(_){}
       document.documentElement.dataset.level = want;
 
+      // Мягкая перерисовка
       try {
         repaintStarsOnly();
         renderSets();
@@ -818,7 +768,6 @@
       } catch(_){}
     });
   }
-
 
   async function mountApp() {
     document.documentElement.dataset.level = getMode();

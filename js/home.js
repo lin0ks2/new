@@ -730,15 +730,14 @@
     t.checked = (getMode() === 'hard'); // checked => hard
 
     t.addEventListener('change', async () => {
-      const A = window.App || {};
-      const before = (A.settings && A.settings.level) ? String(A.settings.level) : 'normal';
+      const before = getMode();
       const want   = t.checked ? 'hard' : 'normal';
       if (before === want) return;
 
       await waitForDecksReady();
       await waitForStartupReady();
 
-      let hasProgress = false;
+      let hasProgress = true;
       let keyToCheck = null;
       let slice = [];
 

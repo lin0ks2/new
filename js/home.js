@@ -729,10 +729,10 @@
 
     t.checked = (getMode() === 'hard'); // checked => hard
 
-    t.addEventListener('change', async (e) => {
+    t.addEventListener('change', async () => {
       const A = window.App || {};
       const before = (A.settings && A.settings.level) ? String(A.settings.level) : 'normal';
-      const want   = e.currentTarget.checked ? 'hard' : 'normal';
+      const want   = t.checked ? 'hard' : 'normal';
       if (before === want) return;
 
       await waitForDecksReady();
@@ -819,7 +819,7 @@
         renderSets();
         A.Stats && A.Stats.recomputeAndRender && A.Stats.recomputeAndRender();
       } catch(_){}
-    }, { capture: true });
+    });
   }
 
 

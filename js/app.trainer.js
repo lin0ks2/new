@@ -19,7 +19,6 @@ const TRAINER_DEFAULT_LEARNED_REPEAT = 'ultra';
       const lvl = (App.settings && (App.settings.level || App.settings.mode)) || domLvl || 'normal';
       return (String(lvl).toLowerCase() === 'hard') ? 'hard' : 'normal';
     } catch(_){ return 'normal'; }
-  } catch(_){ return 'normal'; }
   }
 
   function deltaOnAnswer(ok){

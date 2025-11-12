@@ -733,7 +733,6 @@
       // дождаться готовности словарей (важно на «чистом старте»)
       await waitForDecksReady();
 
-      // === корректно определяем прогресс в ТЕКУЩЕМ СЕТЕ без побочных эффектов ===
       
       // дождаться готовности словарей + стартовой инициализации
       await waitForDecksReady();
@@ -776,9 +775,7 @@
           if (v > 0) { hasProgress = true; break; }
         }
       } catch(_){}
-(_) {}
-
-      if (hasProgress) {
+if (hasProgress) {
         const ok = await confirmModeChangeSet();
         if (!ok) { t.checked = (before === 'hard'); return; }
 

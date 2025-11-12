@@ -21,20 +21,7 @@
         try{
           if (A.Decks && typeof A.Decks.resolveDeckByKey === 'function') {
             const decks = (window.decks && typeof window.decks === 'object') ? window.decks : {}
-  
-;
-            const ok = Object.keys(decks).some(k => Array.isArray(decks[k]) && decks[k].length > 0);
-            if (ok) return resolve(true);
-          }
-        }catch(_){}
-        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-        if (now - t0 > maxWaitMs) return resolve(false);
-        (typeof requestAnimationFrame === 'function' ? requestAnimationFrame : setTimeout)(tick, 16);
-      })();
-    });
-  }
-
-/* ---------------------------- Ожидание старта (StartupManager) ---------------------------- */
+  /* ---------------------------- Ожидание старта (StartupManager) ---------------------------- */
   function waitForStartupReady(maxWaitMs = 1500) {
     return new Promise(resolve => {
       const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
@@ -61,7 +48,17 @@
       return (bucket && typeof bucket === 'object') ? bucket : {};
     }catch(_){ return {}; }
   }
-
+;
+            const ok = Object.keys(decks).some(k => Array.isArray(decks[k]) && decks[k].length > 0);
+            if (ok) return resolve(true);
+          }
+        }catch(_){}
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        if (now - t0 > maxWaitMs) return resolve(false);
+        (typeof requestAnimationFrame === 'function' ? requestAnimationFrame : setTimeout)(tick, 16);
+      })();
+    });
+  }
 
   /* ---------------------------- Язык/строки ---------------------------- */
   function getUiLang() {
@@ -730,7 +727,8 @@
     t.checked = (getMode() === 'hard'); // checked => hard
 
     t.addEventListener('change', async () => {
-      const before = getMode();
+      const A = window.App || {};
+      const before = (A.settings && A.settings.level) ? String(A.settings.level) : 'normal';
       const want   = t.checked ? 'hard' : 'normal';
       if (before === want) return;
 

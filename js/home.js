@@ -719,6 +719,7 @@
     });
   }
 
+  
   function bindLevelToggle() {
     const t = document.getElementById('levelToggle');
     if (!t) return;
@@ -732,10 +733,7 @@
 
       // дождаться готовности словарей (важно на «чистом старте»)
       await waitForDecksReady();
-
-      
-      // дождаться готовности словарей + стартовой инициализации
-      await waitForDecksReady();
+      // инициализация активного ключа от StartupManager
       await waitForStartupReady();
 
       // === корректно определяем прогресс в ТЕКУЩЕМ СЕТЕ без побочных эффектов ===
@@ -765,30 +763,23 @@
           slice = full.slice(from, to);
         }
 
-        
-        // читаем прогресс напрямую из progress.v2 (bucket по dictKey+setIndex)
+        // читаем прогресс из LS и дублируем проверкой по оперативному состоянию
         const bucket = readProgressBucket(keyToCheck, idx);
         for (let i = 0; i < slice.length; i++) {
           const id = slice[i] && slice[i].id;
           if (!id) continue;
           const sk = `${keyToCheck}:${id}`;
           const vLS  = Number(bucket[sk] || 0);
-
-          // дублируем проверку по оперативному состоянию (на случай, если saveState ещё не успел)
           let vMem = 0;
           try {
             if (typeof getStars === 'function') vMem = Number(getStars(id) || 0);
             else if (A.state && A.state.stars) vMem = Number(A.state.stars[sk] || 0);
           } catch(_){}
-
           if ((vLS > 0) || (vMem > 0)) { hasProgress = true; break; }
         }
-:${id}`;
-          const v = Number(bucket[key] || 0);
-          if (v > 0) { hasProgress = true; break; }
-        }
       } catch(_){}
-if (hasProgress) {
+
+      if (hasProgress) {
         const ok = await confirmModeChangeSet();
         if (!ok) { t.checked = (before === 'hard'); return; }
 
@@ -816,6 +807,7 @@ if (hasProgress) {
       } catch(_){}
     });
   }
+
 
   async function mountApp() {
     document.documentElement.dataset.level = getMode();

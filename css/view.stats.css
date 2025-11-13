@@ -109,7 +109,6 @@
   width: 100%;
   height: 100%;
   border-radius: 999px;
-  /* прогресс через угол */
   background:
     conic-gradient(
       var(--ring-color, #0ea5e9) var(--ring-angle, 0deg),
@@ -120,7 +119,7 @@
     0 0 0 1px rgba(255,255,255,0.04);
 }
 
-/* Легенда под кругом (2 колонки) */
+/* Легенда под кругом (по умолчанию — 2 колонки) */
 .stats-ring-legend {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -170,9 +169,25 @@
   opacity: 0.75;
 }
 
-/* Небольшая адаптация на совсем узких экранах */
+/* Адаптация на совсем узких экранах */
 @media (max-width: 360px) {
   .stats-ring-legend {
     grid-template-columns: 1fr;
   }
+}
+
+/* Верхний набор колец (Основные части речи) — легенда в одну колонку и центр */
+.stats-ring-set--core .stats-ring-legend {
+  grid-template-columns: 1fr;
+  max-width: 260px;
+  margin: 0 auto;
+}
+
+.stats-ring-set--core .stats-ring-legend__item {
+  justify-content: center;
+  text-align: center;
+}
+
+.stats-ring-set--core .stats-ring-legend__label {
+  flex: 0 1 auto;
 }

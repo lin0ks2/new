@@ -8,13 +8,13 @@
 
   const A = window.App || (window.App = {});
 
-  // --- Helpers ---------------------------------------------------
+  // ---------- Helpers ------------------------------------------
 
   function getUiLang() {
     try {
       if (A.settings) {
         if (A.settings.uiLang) return A.settings.uiLang;
-        if (A.settings.lang) return A.settings.lang;
+        if (A.settings.lang)   return A.settings.lang;
       }
       const htmlLang = document.documentElement.getAttribute('lang');
       if (htmlLang) return htmlLang;
@@ -27,13 +27,19 @@
     return parts[1] || 'other';
   }
 
-  function nicePosName(pos, uiLang) {
+  // запасной вариант, если по какой-то части речи не найдём ни одного словаря
+  function fallbackPosName(pos, uiLang) {
     const isUk = uiLang === 'uk';
     const mapRu = {
       nouns: 'Существительные',
       verbs: 'Глаголы',
       adj: 'Прилагательные',
+      adjectives: 'Прилагательные',
       adv: 'Наречия',
+      adverbs: 'Наречия',
+      particles: 'Частицы',
+      pronouns: 'Местоимения',
+      numbers: 'Числительные',
       phrases: 'Фразы',
       other: 'Другое'
     };
@@ -41,7 +47,12 @@
       nouns: 'Іменники',
       verbs: 'Дієслова',
       adj: 'Прикметники',
+      adjectives: 'Прикметники',
       adv: 'Прислівники',
+      adverbs: 'Прислівники',
+      particles: 'Частки',
+      pronouns: 'Займенники',
+      numbers: 'Числівники',
       phrases: 'Фрази',
       other: 'Інше'
     };
@@ -59,7 +70,7 @@
   }
 
   function flagForLangBucket(langBucket) {
-    const lang = langBucket.lang;
+    const lang  = langBucket.lang;
     const decks = langBucket.decks || [];
 
     if (A.Decks && typeof A.Decks.flagForKey === 'function' && decks.length) {
@@ -81,22 +92,23 @@
     return map[lang] || lang.toUpperCase();
   }
 
-  // --- I18N для страницы -----------------------------------------
+  // ---------- I18N текста страницы -----------------------------
 
   function getTexts() {
     const uiLang = getUiLang();
-    const isUk = uiLang === 'uk';
+    const isUk   = uiLang === 'uk';
     const fromI18n = (A.i18n && A.i18n()) || null;
 
     return {
       uiLang,
       title: (fromI18n && fromI18n.statsTitle) ||
         (isUk ? 'Статистика вивчення' : 'Статистика изучения'),
-      learnedTotal: (fromI18n && fromI18n.statsLearnedTotal) ||
-        (isUk ? 'Вивчено слів всього' : 'Выучено слов всего'),
       byLangTitle: (fromI18n && fromI18n.statsByLangTitle) ||
         (isUk ? 'За мовами' : 'По языкам'),
-      posName: function (pos) { return nicePosName(pos, uiLang); },
+      // fallback для части речи, если по ней не найдём словаря
+      fallbackPosName: function (pos) {
+        return fallbackPosName(pos, uiLang);
+      },
       learnedLang: (fromI18n && fromI18n.statsLearnedLang) ||
         (isUk ? 'За цією мовою' : 'По этому языку'),
       learnedLangShort: function (learned, total) {
@@ -121,96 +133,66 @@
     };
   }
 
-  // --- Подсчёт статистики ----------------------------------------
+  // ---------- Подсчёт статистики --------------------------------
 
   function computeStats() {
     const decksApi = A.Decks;
     const trainer  = A.Trainer;
     const rawDecks = window.decks || {};
 
-    const byLang = {};
-    const globalStat = {
-      totalWords: 0,
-      learnedWords: 0,
-      byPos: {}
-    };
+    const byLang = {}; // lang -> bucket
 
-    if (!decksApi) {
-      return { global: globalStat, byLang: [] };
+    if (!decksApi || !trainer || typeof trainer.isLearned !== 'function') {
+      return { byLang: [] };
     }
 
-    // Берём реальные деки из window.decks
     const deckKeys = Object.keys(rawDecks).filter(function (k) {
       return Array.isArray(rawDecks[k]) && rawDecks[k].length;
     });
-
-    // максимальное количество звёзд для "выучено"
-    let starsMax = 5;
-    if (A.Config) {
-      if (typeof A.Config.starsMax === 'number') starsMax = A.Config.starsMax;
-      else if (typeof A.Config.starMax === 'number') starsMax = A.Config.starMax;
-    }
 
     deckKeys.forEach(function (deckKey) {
       let lang;
       try {
         lang = decksApi.langOfKey(deckKey);
-      } catch (_) {
-        return;
-      }
+      } catch (_) { return; }
       if (!lang) return;
 
       const words = decksApi.resolveDeckByKey(deckKey) || [];
       if (!words.length) return;
 
       const pos = posFromDeckKey(deckKey);
+
       const langBucket = (byLang[lang] = byLang[lang] || {
         lang: lang,
         totalWords: 0,
         learnedWords: 0,
-        byPos: {},
-        decks: []
+        byPos: {},   // pos -> { pos, total, learned, sampleDeckKey }
+        decks: []    // [{ key, name, totalWords, learnedWords }]
       });
-
-      // тянем прогресс так же, как домашний экран
-      let starsMap = {};
-      try {
-        if (A.Progress && typeof A.Progress.aggregateStars === 'function') {
-          starsMap = A.Progress.aggregateStars(deckKey) || {};
-        }
-      } catch (_) {
-        starsMap = {};
-      }
 
       let deckLearned = 0;
 
       words.forEach(function (w) {
         langBucket.totalWords += 1;
-        globalStat.totalWords += 1;
 
-        const posBucketLang   = (langBucket.byPos[pos] = langBucket.byPos[pos] || { pos: pos, total: 0, learned: 0 });
-        const posBucketGlobal = (globalStat.byPos[pos] = globalStat.byPos[pos] || { pos: pos, total: 0, learned: 0 });
+        const posBucket = (langBucket.byPos[pos] = langBucket.byPos[pos] || {
+          pos: pos,
+          total: 0,
+          learned: 0,
+          sampleDeckKey: deckKey
+        });
 
-        posBucketLang.total   += 1;
-        posBucketGlobal.total += 1;
+        posBucket.total += 1;
 
-        // решаем, выучено ли слово
         let isLearned = false;
-        const sid = String(w.id);
-
-        if (starsMap && Object.prototype.hasOwnProperty.call(starsMap, sid)) {
-          isLearned = (starsMap[sid] | 0) >= starsMax;
-        } else if (trainer && typeof trainer.isLearned === 'function') {
-          // запасной вариант
-          try { isLearned = !!trainer.isLearned(w, deckKey); } catch (_) { isLearned = false; }
-        }
+        try {
+          isLearned = !!trainer.isLearned(w, deckKey);
+        } catch (_) { isLearned = false; }
 
         if (isLearned) {
-          langBucket.learnedWords   += 1;
-          globalStat.learnedWords   += 1;
-          posBucketLang.learned     += 1;
-          posBucketGlobal.learned   += 1;
-          deckLearned               += 1;
+          langBucket.learnedWords += 1;
+          posBucket.learned       += 1;
+          deckLearned             += 1;
         }
       });
 
@@ -233,17 +215,15 @@
       return (b.learnedWords || 0) - (a.learnedWords || 0);
     });
 
-    return {
-      global: globalStat,
-      byLang: langList
-    };
+    return { byLang: langList };
   }
 
-  // --- Рендер кругов ---------------------------------------------
+  // ---------- Рендер кругов -------------------------------------
 
   function renderCircle(label, primaryText, subText, part, total) {
-    const p = percent(part, total);
+    const p     = percent(part, total);
     const angle = degreesFromPercent(p);
+
     return (
       '<div class="stats-circle" style="--stats-angle:' + angle + 'deg;">' +
         '<div class="stats-circle__ring"></div>' +
@@ -256,58 +236,39 @@
     );
   }
 
-  // --- Глобальный блок -------------------------------------------
+  // ---------- Блок "по языкам" ----------------------------------
 
-  function renderGlobalSection(stat, t) {
-    const total   = stat.totalWords || 0;
-    const learned = stat.learnedWords || 0;
+  function resolvePosLabel(posBucket, t) {
+    const decksApi = A.Decks;
+    let label = '';
 
-    const circleMain = renderCircle(
-      t.learnedTotal,
-      percent(learned, total) + '%',
-      learned + ' / ' + total,
-      learned,
-      total
-    );
+    if (posBucket.sampleDeckKey && decksApi && typeof decksApi.resolveNameByKey === 'function') {
+      try {
+        label = decksApi.resolveNameByKey(posBucket.sampleDeckKey) || '';
+      } catch (_) { label = ''; }
+    }
 
-    const posCircles = Object.keys(stat.byPos).map(function (pos) {
-      const bucket = stat.byPos[pos];
-      const lbl = t.posName(pos);
-      return (
-        '<div class="stats-grid__item">' +
-          renderCircle(
-            lbl,
-            bucket.learned + ' / ' + bucket.total,
-            percent(bucket.learned, bucket.total) + '%',
-            bucket.learned,
-            bucket.total
-          ) +
-        '</div>'
-      );
-    }).join('');
+    // если по какой-то причине не нашли имя словаря — fallback
+    if (!label) {
+      label = t.fallbackPosName(posBucket.pos || '');
+    }
 
-    return (
-      '<section class="stats-section stats-section--global">' +
-        '<h1 class="stats-title">' + t.title + '</h1>' +
-        '<div class="stats-hero">' +
-          '<div class="stats-hero__main">' + circleMain + '</div>' +
-          '<div class="stats-hero__grid">' + posCircles + '</div>' +
-        '</div>' +
-      '</section>'
-    );
+    return label;
   }
-
-  // --- Блок по языкам --------------------------------------------
 
   function renderLangSection(langStats, t, activeLangCode) {
     if (!langStats.length) {
-      return '';
+      return (
+        '<section class="stats-section stats-section--langs">' +
+          '<h1 class="stats-title">' + t.title + '</h1>' +
+          '<p class="stats-placeholder">—</p>' +
+        '</section>'
+      );
     }
 
     const withProgress = langStats.filter(function (ls) {
       return (ls.learnedWords || 0) > 0;
     });
-
     const langsForFilter = withProgress.length ? withProgress : langStats;
 
     let activeLang = activeLangCode;
@@ -316,6 +277,7 @@
       else activeLang = langStats[0].lang;
     }
 
+    // флажки-фильтры (только флаг, без текста)
     let switchHtml = '';
     if (langsForFilter.length > 1) {
       const chips = langsForFilter.map(function (ls) {
@@ -324,7 +286,6 @@
           '<button class="stats-lang-chip' + (isActive ? ' is-active' : '') + '" ' +
                   'type="button" data-lang="' + ls.lang + '">' +
             '<span class="stats-lang-chip__flag">' + flagForLangBucket(ls) + '</span>' +
-            '<span class="stats-lang-chip__label">' + ls.lang.toUpperCase() + '</span>' +
           '</button>'
         );
       }).join('');
@@ -336,17 +297,18 @@
     }
 
     const items = langStats.map(function (langStat) {
-      const total   = langStat.totalWords || 0;
-      const learned = langStat.learnedWords || 0;
+      const total    = langStat.totalWords || 0;
+      const learned  = langStat.learnedWords || 0;
       const langCode = langStat.lang;
       const isActive = langCode === activeLang;
 
       const posCircles = Object.keys(langStat.byPos).map(function (pos) {
         const bucket = langStat.byPos[pos];
+        const label  = resolvePosLabel(bucket, t);
         return (
           '<div class="stats-grid__item">' +
             renderCircle(
-              t.posName(pos),
+              label,
               bucket.learned + ' / ' + bucket.total,
               percent(bucket.learned, bucket.total) + '%',
               bucket.learned,
@@ -377,15 +339,6 @@
             '</div>' +
           '</header>' +
           '<div class="stats-lang-card__body">' +
-            '<div class="stats-lang-card__main-circle">' +
-              renderCircle(
-                t.learnedLang,
-                percent(learned, total) + '%',
-                learned + ' / ' + total,
-                learned,
-                total
-              ) +
-            '</div>' +
             '<div class="stats-lang-card__grid">' + posCircles + '</div>' +
           '</div>' +
         '</article>'
@@ -394,6 +347,7 @@
 
     return (
       '<section class="stats-section stats-section--langs">' +
+        '<h1 class="stats-title">' + t.title + '</h1>' +
         '<h2 class="stats-subtitle">' + t.byLangTitle + '</h2>' +
         switchHtml +
         '<div class="stats-lang-list">' + items + '</div>' +
@@ -401,7 +355,7 @@
     );
   }
 
-  // --- Плейсхолдер для будущих метрик ----------------------------
+  // ---------- Плейсхолдер для будущих метрик --------------------
 
   function renderPlaceholderSection(t) {
     return (
@@ -412,7 +366,7 @@
     );
   }
 
-  // --- Переключение языков по флажкам ---------------------------
+  // ---------- Переключение языка по флагам ----------------------
 
   function attachLangSwitchHandlers(root) {
     const chips = root.querySelectorAll('.stats-lang-switch .stats-lang-chip');
@@ -435,14 +389,14 @@
     });
   }
 
-  // --- Выбор активного языка тренировки -------------------------
+  // ---------- Выбор активного языка тренировки ------------------
 
   function detectActiveTrainLang(statsByLang) {
     if (!statsByLang || !statsByLang.length) return null;
 
     try {
       if (A.Trainer && typeof A.Trainer.getDeckKey === 'function' &&
-          A.Decks && typeof A.Decks.langOfKey === 'function') {
+          A.Decks   && typeof A.Decks.langOfKey === 'function') {
         const dk = A.Trainer.getDeckKey();
         if (dk) {
           const lang = A.Decks.langOfKey(dk);
@@ -457,10 +411,11 @@
       return (b.learnedWords || 0) > 0;
     });
     if (withProgress.length) return withProgress[0].lang;
+
     return statsByLang[0].lang;
   }
 
-  // --- Публичный API --------------------------------------------
+  // ---------- Публичный API -------------------------------------
 
   function mount() {
     const root = document.getElementById('app');
@@ -472,7 +427,6 @@
 
     const html =
       '<div class="stats-page">' +
-        renderGlobalSection(stats.global, t) +
         renderLangSection(stats.byLang, t, activeLang) +
         renderPlaceholderSection(t) +
       '</div>';

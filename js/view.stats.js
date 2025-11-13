@@ -1,63 +1,77 @@
 /* ==========================================================
- * Project: MOYAMOVA
- * File: view.stats.js
- * Purpose: Страница "Статистика"
+ * view.stats.js — Экран "Статистика"
  * ========================================================== */
-(function (window, document) {
+(function () {
   'use strict';
+  const A = (window.App = window.App || {});
 
-  const A = window.App || (window.App = {});
-
-  // ---------- Helpers ------------------------------------------
+  /* ---------------------- helpers ---------------------- */
 
   function getUiLang() {
-    try {
-      if (A.settings) {
-        if (A.settings.uiLang) return A.settings.uiLang;
-        if (A.settings.lang)   return A.settings.lang;
-      }
-      const htmlLang = document.documentElement.getAttribute('lang');
-      if (htmlLang) return htmlLang;
-    } catch (_) {}
-    return 'ru';
+    const s = (A.settings && (A.settings.lang || A.settings.uiLang)) || 'ru';
+    return (String(s).toLowerCase() === 'uk') ? 'uk' : 'ru';
+  }
+
+  function t() {
+    const uk = getUiLang() === 'uk';
+    const i = (A.i18n && A.i18n()) || null;
+    return {
+      title: (i && i.statsTitle) || (uk ? 'Статистика вивчення' : 'Статистика изучения'),
+      byLangTitle: (i && i.statsByLangTitle) || (uk ? 'За мовами' : 'По языкам'),
+      fallbackPosName: function (pos) {
+        const mapRu = {
+          nouns: 'Существительные',
+          verbs: 'Глаголы',
+          adj: 'Прилагательные',
+          adjectives: 'Прилагательные',
+          adv: 'Наречия',
+          adverbs: 'Наречия',
+          particles: 'Частицы',
+          pronouns: 'Местоимения',
+          numbers: 'Числительные',
+          phrases: 'Фразы',
+          other: 'Другое'
+        };
+        const mapUk = {
+          nouns: 'Іменники',
+          verbs: 'Дієслова',
+          adj: 'Прикметники',
+          adjectives: 'Прикметники',
+          adv: 'Прислівники',
+          adverbs: 'Прислівники',
+          particles: 'Частки',
+          pronouns: 'Займенники',
+          numbers: 'Числівники',
+          phrases: 'Фрази',
+          other: 'Інше'
+        };
+        const dict = uk ? mapUk : mapRu;
+        return dict[pos] || pos;
+      },
+      learnedLangShort: function (learned, total) {
+        return uk
+          ? ('Вивчено ' + learned + ' з ' + total + ' слів')
+          : ('Выучено ' + learned + ' из ' + total + ' слов');
+      },
+      decksSummary: function (started, completed, totalDecks) {
+        return uk
+          ? ('Словників: ' + totalDecks +
+             ' • розпочато: ' + started +
+             ' • завершено: ' + completed)
+          : ('Словарей: ' + totalDecks +
+             ' • начато: ' + started +
+             ' • завершено: ' + completed);
+      },
+      placeholderTitle: uk ? 'Активність і якість' : 'Активность и качество',
+      placeholderText: uk
+        ? 'Тут пізніше з’явиться статистика за часом у застосунку, регулярністю та якістю запам’ятовування.'
+        : 'Здесь позже появится статистика по времени в приложении, регулярности и качеству запоминания.'
+    };
   }
 
   function posFromDeckKey(deckKey) {
     const parts = String(deckKey || '').split('_');
     return parts[1] || 'other';
-  }
-
-  // запасной вариант, если по какой-то части речи не найдём ни одного словаря
-  function fallbackPosName(pos, uiLang) {
-    const isUk = uiLang === 'uk';
-    const mapRu = {
-      nouns: 'Существительные',
-      verbs: 'Глаголы',
-      adj: 'Прилагательные',
-      adjectives: 'Прилагательные',
-      adv: 'Наречия',
-      adverbs: 'Наречия',
-      particles: 'Частицы',
-      pronouns: 'Местоимения',
-      numbers: 'Числительные',
-      phrases: 'Фразы',
-      other: 'Другое'
-    };
-    const mapUk = {
-      nouns: 'Іменники',
-      verbs: 'Дієслова',
-      adj: 'Прикметники',
-      adjectives: 'Прикметники',
-      adv: 'Прислівники',
-      adverbs: 'Прислівники',
-      particles: 'Частки',
-      pronouns: 'Займенники',
-      numbers: 'Числівники',
-      phrases: 'Фрази',
-      other: 'Інше'
-    };
-    const dict = isUk ? mapUk : mapRu;
-    return dict[pos] || pos;
   }
 
   function percent(part, total) {
@@ -80,58 +94,12 @@
       } catch (_) {}
     }
 
-    const map = {
-      de: '🇩🇪',
-      en: '🇬🇧',
-      fr: '🇫🇷',
-      es: '🇪🇸',
-      sr: '🇷🇸',
-      ru: '🇷🇺',
-      uk: '🇺🇦'
-    };
-    return map[lang] || lang.toUpperCase();
+    // запасной вариант — как в view.dicts.js
+    const FLAG = { en:'🇬🇧', de:'🇩🇪', fr:'🇫🇷', es:'🇪🇸', it:'🇮🇹', ru:'🇷🇺', uk:'🇺🇦', sr:'🇷🇸', pl:'🇵🇱' };
+    return FLAG[lang] || lang.toUpperCase();
   }
 
-  // ---------- I18N текста страницы -----------------------------
-
-  function getTexts() {
-    const uiLang = getUiLang();
-    const isUk   = uiLang === 'uk';
-    const fromI18n = (A.i18n && A.i18n()) || null;
-
-    return {
-      uiLang,
-      title: (fromI18n && fromI18n.statsTitle) ||
-        (isUk ? 'Статистика вивчення' : 'Статистика изучения'),
-      byLangTitle: (fromI18n && fromI18n.statsByLangTitle) ||
-        (isUk ? 'За мовами' : 'По языкам'),
-      // fallback для части речи, если по ней не найдём словаря
-      fallbackPosName: function (pos) {
-        return fallbackPosName(pos, uiLang);
-      },
-      learnedLangShort: function (learned, total) {
-        return isUk
-          ? ('Вивчено ' + learned + ' з ' + total + ' слів')
-          : ('Выучено ' + learned + ' из ' + total + ' слов');
-      },
-      decksSummary: function (started, completed, totalDecks) {
-        return isUk
-          ? ('Словників: ' + totalDecks +
-             ' • розпочато: ' + started +
-             ' • завершено: ' + completed)
-          : ('Словарей: ' + totalDecks +
-             ' • начато: ' + started +
-             ' • завершено: ' + completed);
-      },
-      langFilterLabel: isUk ? 'Мова тренування' : 'Язык тренировки',
-      placeholderTitle: isUk ? 'Активність і якість' : 'Активность и качество',
-      placeholderText: isUk
-        ? 'Тут пізніше з’явиться статистика за часом у застосунку, регулярністю та якістю запам’ятовування.'
-        : 'Здесь позже появится статистика по времени в приложении, регулярности и качеству запоминания.'
-    };
-  }
-
-  // ---------- Подсчёт статистики --------------------------------
+  /* ---------------------- подсчёт статистики ---------------------- */
 
   function computeStats() {
     const decksApi = A.Decks;
@@ -182,7 +150,6 @@
 
         posBucket.total += 1;
 
-        // "Выучено" берём из Trainer.isLearned — это основной источник истины
         let isLearned = false;
         if (trainer && typeof trainer.isLearned === 'function') {
           try {
@@ -221,7 +188,7 @@
     return { byLang: langList };
   }
 
-  // ---------- Рендер кругов -------------------------------------
+  /* ---------------------- рендер кругов ---------------------- */
 
   function renderCircle(label, primaryText, subText, part, total) {
     const p     = percent(part, total);
@@ -239,9 +206,9 @@
     );
   }
 
-  // ---------- Блок "по языкам" ----------------------------------
+  /* ---------------------- блок по языкам ---------------------- */
 
-  function resolvePosLabel(posBucket, t) {
+  function resolvePosLabel(posBucket, texts) {
     const decksApi = A.Decks;
     let label = '';
 
@@ -250,53 +217,18 @@
         label = decksApi.resolveNameByKey(posBucket.sampleDeckKey) || '';
       } catch (_) { label = ''; }
     }
-
     if (!label) {
-      label = t.fallbackPosName(posBucket.pos || '');
+      label = texts.fallbackPosName(posBucket.pos || '');
     }
-
     return label;
   }
 
-  function renderLangSection(langStats, t, activeLangCode) {
+  function renderLangCards(langStats, texts, activeLangCode) {
     if (!langStats.length) {
-      return (
-        '<section class="stats-section stats-section--langs">' +
-          '<h1 class="stats-title">' + t.title + '</h1>' +
-          '<p class="stats-placeholder">—</p>' +
-        '</section>'
-      );
+      return '<p class="stats-placeholder">—</p>';
     }
 
-    const withProgress = langStats.filter(function (ls) {
-      return (ls.learnedWords || 0) > 0;
-    });
-    const langsForFilter = withProgress.length ? withProgress : langStats;
-
-    let activeLang = activeLangCode;
-    if (!activeLang) {
-      if (withProgress.length) activeLang = withProgress[0].lang;
-      else activeLang = langStats[0].lang;
-    }
-
-    // флажки-фильтры (только флаг, без текста)
-    let switchHtml = '';
-    if (langsForFilter.length > 1) {
-      const chips = langsForFilter.map(function (ls) {
-        const isActive = ls.lang === activeLang;
-        return (
-          '<button class="stats-lang-chip' + (isActive ? ' is-active' : '') + '" ' +
-                  'type="button" data-lang="' + ls.lang + '">' +
-            '<span class="stats-lang-chip__flag">' + flagForLangBucket(ls) + '</span>' +
-          '</button>'
-        );
-      }).join('');
-
-      switchHtml =
-        '<div class="stats-lang-switch" aria-label="' + t.langFilterLabel + '">' +
-          chips +
-        '</div>';
-    }
+    let activeLang = activeLangCode || langStats[0].lang;
 
     const items = langStats.map(function (langStat) {
       const total    = langStat.totalWords || 0;
@@ -306,7 +238,7 @@
 
       const posCircles = Object.keys(langStat.byPos).map(function (pos) {
         const bucket = langStat.byPos[pos];
-        const label  = resolvePosLabel(bucket, t);
+        const label  = resolvePosLabel(bucket, texts);
         return (
           '<div class="stats-grid__item">' +
             renderCircle(
@@ -320,24 +252,24 @@
         );
       }).join('');
 
-      let started = 0;
+      let started   = 0;
       let completed = 0;
       langStat.decks.forEach(function (d) {
         if (d.learnedWords > 0) started += 1;
         if (d.totalWords > 0 && d.learnedWords >= d.totalWords) completed += 1;
       });
 
+      // ВАЖНО: здесь убираем код языка (DE/EN/...) в заголовке карточки
       return (
         '<article class="stats-lang-card' + (isActive ? ' is-active' : '') + '" data-lang="' + langCode + '">' +
           '<header class="stats-lang-card__header">' +
             '<div class="stats-lang-card__title">' +
-              '<span class="stats-lang-card__lang">' + langCode.toUpperCase() + '</span>' +
               '<span class="stats-lang-card__meta">' +
-                t.learnedLangShort(learned, total) +
+                texts.learnedLangShort(learned, total) +
               '</span>' +
             '</div>' +
             '<div class="stats-lang-card__decks">' +
-              t.decksSummary(started, completed, langStat.decks.length) +
+              texts.decksSummary(started, completed, langStat.decks.length) +
             '</div>' +
           '</header>' +
           '<div class="stats-lang-card__body">' +
@@ -347,55 +279,87 @@
       );
     }).join('');
 
-    return (
-      '<section class="stats-section stats-section--langs">' +
-        '<h1 class="stats-title">' + t.title + '</h1>' +
-        '<h2 class="stats-subtitle">' + t.byLangTitle + '</h2>' +
-        switchHtml +
-        '<div class="stats-lang-list">' + items + '</div>' +
-      '</section>'
-    );
+    return '<div class="stats-lang-list">' + items + '</div>';
   }
 
-  // ---------- Плейсхолдер для будущих метрик --------------------
+  /* ---------------------- плейсхолдер ---------------------- */
 
-  function renderPlaceholderSection(t) {
+  function renderPlaceholderSection(texts) {
     return (
       '<section class="stats-section stats-section--placeholder">' +
-        '<h2 class="stats-subtitle">' + t.placeholderTitle + '</h2>' +
-        '<p class="stats-placeholder">' + t.placeholderText + '</p>' +
+        '<h2 class="stats-subtitle">' + texts.placeholderTitle + '</h2>' +
+        '<p class="stats-placeholder">' + texts.placeholderText + '</p>' +
       '</section>'
     );
   }
 
-  // ---------- Переключение языка по флагам ----------------------
+  /* ---------------------- флаги (как в Словарях) ------------ */
 
-  function attachLangSwitchHandlers(root) {
-    const chips = root.querySelectorAll('.stats-lang-switch .stats-lang-chip');
-    if (!chips.length) return;
+  function setupLangFlags(root, langStats, activeLangInitial) {
+    const box = root.querySelector('#stats-flags');
+    if (!box || !langStats.length) return;
 
-    chips.forEach(function (chip) {
-      chip.addEventListener('click', function () {
-        const lang = this.getAttribute('data-lang');
+    const langs = langStats.map(function (ls) { return ls.lang; });
+    let activeLang = activeLangInitial && langs.indexOf(activeLangInitial) !== -1
+      ? activeLangInitial
+      : langs[0];
 
-        chips.forEach(function (c) {
-          c.classList.toggle('is-active', c === chip);
-        });
+    const FLAG = { en:'🇬🇧', de:'🇩🇪', fr:'🇫🇷', es:'🇪🇸', it:'🇮🇹', ru:'🇷🇺', uk:'🇺🇦', sr:'🇷🇸', pl:'🇵🇱' };
 
-        const cards = root.querySelectorAll('.stats-lang-card');
-        cards.forEach(function (card) {
-          const cardLang = card.getAttribute('data-lang');
-          card.classList.toggle('is-active', cardLang === lang);
-        });
+    function applyActive(lang) {
+      activeLang = lang;
+
+      // подсветка кнопок
+      box.querySelectorAll('.dict-flag').forEach(function (b) {
+        b.classList.toggle('active', b.dataset.lang === lang);
       });
+
+      // показ нужной карточки
+      root.querySelectorAll('.stats-lang-card').forEach(function (card) {
+        const cl = card.getAttribute('data-lang');
+        card.classList.toggle('is-active', cl === lang);
+      });
+
+      // можно запомнить последний выбранный язык
+      try {
+        A.settings = A.settings || {};
+        A.settings.statsLang = lang;
+      } catch (_) {}
+    }
+
+    // заново рисуем кнопки
+    box.innerHTML = '';
+    langs.forEach(function (lang) {
+      const btn = document.createElement('button');
+      btn.type  = 'button';
+      btn.className = 'dict-flag' + (lang === activeLang ? ' active' : '');
+      btn.dataset.lang = lang;
+      btn.title        = lang.toUpperCase();
+      btn.textContent  = FLAG[lang] || lang.toUpperCase();
+      btn.addEventListener('click', function () {
+        if (lang === activeLang) return;
+        applyActive(lang);
+      });
+      box.appendChild(btn);
     });
+
+    applyActive(activeLang);
   }
 
-  // ---------- Выбор активного языка тренировки ------------------
+  /* ---------------------- выбор активного языка ------------ */
 
   function detectActiveTrainLang(statsByLang) {
     if (!statsByLang || !statsByLang.length) return null;
 
+    // сначала пробуем взять язык из настроек статистики
+    try {
+      if (A.settings && A.settings.statsLang &&
+          statsByLang.some(function (b) { return b.lang === A.settings.statsLang; })) {
+        return A.settings.statsLang;
+      }
+    } catch (_) {}
+
+    // потом — язык активного словаря тренажёра
     try {
       if (A.Trainer && typeof A.Trainer.getDeckKey === 'function' &&
           A.Decks   && typeof A.Decks.langOfKey === 'function') {
@@ -417,28 +381,38 @@
     return statsByLang[0].lang;
   }
 
-  // ---------- Публичный API -------------------------------------
+  /* ---------------------- mount() ---------------------- */
 
   function mount() {
-    const root = document.getElementById('app');
-    if (!root) return;
+    const app = document.getElementById('app');
+    if (!app) return;
 
-    const t     = getTexts();
+    const texts = t();
     const stats = computeStats();
     const activeLang = detectActiveTrainLang(stats.byLang);
 
+    const cardsHtml = renderLangCards(stats.byLang, texts, activeLang);
+
+    // Разметка сделана по образцу view.dicts.js:
+    // card.dicts-card + .dicts-header + .dicts-flags
     const html =
-      '<div class="stats-page">' +
-        renderLangSection(stats.byLang, t, activeLang) +
-        renderPlaceholderSection(t) +
+      '<div class="home">' +
+        '<section class="card dicts-card stats-card">' +
+          '<div class="dicts-header">' +
+            '<h3>' + texts.title + '</h3>' +
+            '<div id="stats-flags" class="dicts-flags"></div>' +
+          '</div>' +
+          cardsHtml +
+        '</section>' +
+        renderPlaceholderSection(texts) +
       '</div>';
 
-    root.innerHTML = html;
-    attachLangSwitchHandlers(root);
+    app.innerHTML = html;
+    setupLangFlags(app, stats.byLang, activeLang);
   }
 
   A.ViewStats = {
     mount: mount
   };
 
-})(window, document);
+})();

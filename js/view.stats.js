@@ -62,11 +62,6 @@
              ' • начато: ' + started +
              ' • завершено: ' + completed);
       },
-      // подписи для нового summary-блока
-      summaryMainLabel: uk ? 'Вивчено слів' : 'Выучено слов',
-      tagDecks:   uk ? 'Словників'  : 'Словарей',
-      tagStarted: uk ? 'Розпочато'  : 'Начато',
-      tagCompleted: uk ? 'Завершено' : 'Завершено',
       placeholderTitle: uk ? 'Активність і якість' : 'Активность и качество',
       placeholderText: uk
         ? 'Тут пізніше з’явиться статистика за часом у застосунку, регулярністю та якістю запам’ятовування.'
@@ -237,7 +232,7 @@
 
     const items = langStats.map(function (langStat) {
       const total    = langStat.totalWords || 0;
-      const learned  = langStat.learnedWords || 0;
+      const learned  = langStat.learnedWords || 0; // пока не используем, но пусть будет
       const langCode = langStat.lang;
       const isActive = langCode === activeLang;
 
@@ -257,29 +252,9 @@
         );
       }).join('');
 
-      let started   = 0;
-      let completed = 0;
-      langStat.decks.forEach(function (d) {
-        if (d.learnedWords > 0) started += 1;
-        if (d.totalWords > 0 && d.learnedWords >= d.totalWords) completed += 1;
-      });
-
-      // шапка: аккуратный summary-блок вместо длинной строки
+      // БЕЗ шапки: только тело с кругами
       return (
         '<article class="stats-lang-card' + (isActive ? ' is-active' : '') + '" data-lang="' + langCode + '">' +
-          '<header class="stats-lang-card__header">' +
-            '<div class="stats-summary">' +
-              '<div class="stats-summary-main">' +
-                '<div class="stats-summary-main__value">' + learned + ' / ' + total + '</div>' +
-                '<div class="stats-summary-main__label">' + texts.summaryMainLabel + '</div>' +
-              '</div>' +
-              '<div class="stats-summary-tags">' +
-                '<span class="stats-tag">' + texts.tagDecks + ': ' + langStat.decks.length + '</span>' +
-                '<span class="stats-tag">' + texts.tagStarted + ': ' + started + '</span>' +
-                '<span class="stats-tag">' + texts.tagCompleted + ': ' + completed + '</span>' +
-              '</div>' +
-            '</div>' +
-          '</header>' +
           '<div class="stats-lang-card__body">' +
             '<div class="stats-lang-card__grid">' + posCircles + '</div>' +
           '</div>' +

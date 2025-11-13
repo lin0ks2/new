@@ -4,17 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
-  <title>MOYAMOVA — офлайн‑тренажёр языков на карточках</title>
+  <title>MOYAMOVA — офлайн-тренажёр языков на карточках</title>
   <meta name="description" content="Изучайте языки с карточками слов: работает офлайн без интернета, без рекламы и подписок. Немецкий, английский, французский, сербский. Прогресс, статистика, экспорт.">
   <meta name="robots" content="index,follow">
   <meta name="theme-color" content="#ffffff">
+
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./css/theme.light.css">
   <link rel="stylesheet" href="./css/theme.dark.css">
   <link rel="stylesheet" href="css/view.stats.css">
+
   <link rel="manifest" href="./manifest.webmanifest">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- Иконки -->
   <link rel="icon" type="image/png" sizes="192x192" href="./img/android-chrome-192x192.png">
   <link rel="icon" type="image/png" sizes="512x512" href="./img/android-chrome-512x512.png">
   <link rel="icon" type="image/png" sizes="120x120" href="./img/apple-touch-icon-120x120.png">
@@ -31,27 +35,52 @@
   <link rel="apple-touch-icon" sizes="180x180" href="./img/apple-touch-icon-180x180.png">
   <link rel="apple-touch-icon" sizes="128x128" href="./img/logo_128.png">
   <link rel="apple-touch-icon" sizes="512x512" href="./img/logo_512.png">
+
+  <!-- SEO / соцсети -->
   <link rel="canonical" href="https://moyamova.online/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="MOYAMOVA">
-  <meta property="og:title" content="MOYAMOVA — офлайн‑тренажёр языков на карточках">
+  <meta property="og:title" content="MOYAMOVA — офлайн-тренажёр языков на карточках">
   <meta property="og:description" content="Изучайте языки с карточками слов: работает офлайн без интернета, без рекламы и подписок. Немецкий, английский, французский, сербский. Прогресс, статистика, экспорт.">
   <meta property="og:locale" content="ru_RU">
   <meta property="og:url" content="https://moyamova.online/">
   <meta property="og:image" content="https://moyamova.online/img/android-chrome-512x512.png">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="MOYAMOVA — офлайн‑тренажёр языков на карточках">
+  <meta name="twitter:title" content="MOYAMOVA — офлайн-тренажёр языков на карточках">
   <meta name="twitter:description" content="Изучайте языки с карточками слов: работает офлайн без интернета, без рекламы и подписок. Немецкий, английский, французский, сербский. Прогресс, статистика, экспорт.">
   <meta name="twitter:image" content="https://moyamova.online/img/android-chrome-512x512.png">
 
   <meta name="apple-mobile-web-app-title" content="MOYAMOVA">
-  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "MOYAMOVA", "applicationCategory": "EducationalApplication", "operatingSystem": "Web", "isAccessibleForFree": true, "offers": {"@type": "Offer", "price": "0", "priceCurrency": "CHF"}, "url": "https://moyamova.online/", "inLanguage": ["ru", "uk", "de", "en", "fr", "sr"], "description": "Изучайте языки с карточками слов: работает офлайн без интернета, без рекламы и подписок. Немецкий, английский, французский, сербский. Прогресс, статистика, экспорт.", "publisher": {"@type": "Organization", "name": "MOYAMOVA"}}</script>
+
+  <!-- Schema.org -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "MOYAMOVA",
+    "applicationCategory": "EducationalApplication",
+    "operatingSystem": "Web",
+    "isAccessibleForFree": true,
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "CHF"
+    },
+    "url": "https://moyamova.online/",
+    "inLanguage": ["ru", "uk", "de", "en", "fr", "sr"],
+    "description": "Изучайте языки с карточками слов: работает офлайн без интернета, без рекламы и подписок. Немецкий, английский, французский, сербский. Прогресс, статистика, экспорт.",
+    "publisher": {
+      "@type": "Organization",
+      "name": "MOYAMOVA"
+    }
+  }
+  </script>
 
   <!-- Smooth reload helper: prevents white flash during SW upgrade -->
   <script>
   (function(){
     try {
-      if (sessionStorage.getItem('moya_upgrading')==='1') {
+      if (sessionStorage.getItem('moya_upgrading') === '1') {
         var dark = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
         var bg = dark ? '#0c1016' : '#ffffff';
         var st = document.createElement('style');
@@ -221,17 +250,21 @@
       }, { passive:false });
     }
 
-    // Закрытие меню
+    // Закрытие меню по кнопкам с data-close
     document.addEventListener('click', (e) => {
       const t = e.target;
       const closeAttr = t.getAttribute && t.getAttribute('data-close');
-      if (closeAttr){ e.preventDefault(); closeMenu(); }
+      if (closeAttr){
+        e.preventDefault();
+        closeMenu();
+      }
     });
     if (overlay) overlay.addEventListener('click', closeMenu);
 
-    // Свайп вправо — закрыть
+    // Свайп вправо — закрыть меню
     (function(){
       let startX = null;
+      if (!ocPanel) return;
       ocPanel.addEventListener('touchstart', (e)=>{ startX = e.touches[0].clientX; }, {passive:true});
       ocPanel.addEventListener('touchend', (e)=>{
         if (startX == null) return;
@@ -241,7 +274,7 @@
       });
     })();
 
-    // Edge-свайп от края — открыть
+    // Edge-свайп от правого края — открыть меню
     (function(){
       let startX = null, startedAtEdge = false;
       const EDGE = 16;
@@ -255,66 +288,84 @@
         if (!startedAtEdge) return;
         const endX = (e.changedTouches[0]||{}).clientX || 0;
         if (startX - endX > 30) openMenu();
-        startedAtEdge = false; startX = null;
+        startedAtEdge = false;
+        startX = null;
       });
     })();
 
-    // Навигация футера — без перезагрузки
+    // Навигация футера — SPA-роутинг через App.Router
     document.querySelectorAll('.app-footer .nav-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', () => {
+        const act = btn.getAttribute('data-action');
+
+        // Переключаем активную кнопку
         document.querySelectorAll('.app-footer .nav-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        const act = btn.getAttribute('data-action');
+
         try {
-          if (act === 'home') {
+          if (window.App && App.Router && typeof App.Router.routeTo === 'function') {
+            App.Router.routeTo(act);
+          } else if (act === 'home') {
+            // Запасной вариант, если роутер ещё не инициализирован
             if (window.App && App.Home && typeof App.Home.mount === 'function') {
               App.Home.mount();
             } else {
-              // fallback: мягкая перезагрузка
               location.assign('./');
             }
           }
-          // остальные экраны подключим позже
-         
-          case 'stats':
-  if (window.App && App.ViewStats && typeof App.ViewStats.mount === 'function') {
-    App.ViewStats.mount();
-  }
-  updateFooterActive('stats');
-  break;
-          
-        } catch(e){ console.warn('nav error', e); }
+        } catch(e){
+          console.warn('nav error', e);
+        }
       });
     });
 
     // 100vh фикс + портретная заглушка
     (function(){
-      function setVhUnit(){ document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px'); }
+      function setVhUnit(){
+        document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
+      }
       const mqLandscape = window.matchMedia('(orientation: landscape)');
       function applyOrientation(){
         const isLandscape = mqLandscape.matches;
         document.body.classList.toggle('landscape', isLandscape);
         const app = document.getElementById('app');
         if (app) app.setAttribute('aria-hidden', isLandscape ? 'true' : 'false');
-        try { if (window.App && App.applyI18nTitles) { App.applyI18nTitles(document.querySelector('.rotate-lock')); } } catch (_) {}
+        try {
+          if (window.App && App.applyI18nTitles) {
+            App.applyI18nTitles(document.querySelector('.rotate-lock'));
+          }
+        } catch (_) {}
       }
       try { mqLandscape.addEventListener('change', applyOrientation); }
       catch(_) { mqLandscape.addListener && mqLandscape.addListener(applyOrientation); }
       window.addEventListener('resize', setVhUnit);
-      window.addEventListener('orientationchange', function(){ setVhUnit(); applyOrientation(); });
-      setVhUnit(); applyOrientation();
+      window.addEventListener('orientationchange', function(){
+        setVhUnit();
+        applyOrientation();
+      });
+      setVhUnit();
+      applyOrientation();
     })();
 
-    // Тема / язык / сложность
+    // Тема / язык / сложность (локальные data-* для CSS)
     const themeToggle = document.getElementById('themeToggle');
-    if(themeToggle){ themeToggle.addEventListener('change', e=>{ document.documentElement.dataset.theme = e.target.checked ? 'dark' : 'light'; }); }
+    if(themeToggle){
+      themeToggle.addEventListener('change', e=>{
+        document.documentElement.dataset.theme = e.target.checked ? 'dark' : 'light';
+      });
+    }
     const langToggle = document.getElementById('langToggle');
-    if(langToggle){ langToggle.addEventListener('change', e=>{ document.documentElement.dataset.lang = e.target.checked ? 'ru' : 'uk'; }); }
+    if(langToggle){
+      langToggle.addEventListener('change', e=>{
+        document.documentElement.dataset.lang = e.target.checked ? 'ru' : 'uk';
+      });
+    }
     const levelToggle = document.getElementById('levelToggle');
-    if(levelToggle){ levelToggle.addEventListener('change', e=>{ document.documentElement.dataset.level = e.target.checked ? 'hard' : 'normal'; }); }
-
-    // Проверка обновлений (заглушка)
-    
+    if(levelToggle){
+      levelToggle.addEventListener('change', e=>{
+        document.documentElement.dataset.level = e.target.checked ? 'hard' : 'normal';
+      });
+    }
 
     // Версия приложения (app.core.js → App.APP_VER)
     (function(){
@@ -330,88 +381,111 @@
         s.onload = renderVersion;
         s.onerror = function(){};
         document.head.appendChild(s);
-      } else { renderVersion(); }
+      } else {
+        renderVersion();
+      }
     })();
 
-    // Actions внизу
+    // Actions внизу меню
     const actionsMap = {
-      guide(){ /* TODO */ },
+      guide(){ /* TODO: инструкция */ },
       donate(){
         if (!window.Donate) {
           const s = document.createElement('script');
           s.src = './js/donate.js';
-          s.onload = () => window.Donate?.open();
+          s.onload = () => window.Donate && window.Donate.open && window.Donate.open();
           document.head.appendChild(s);
-        } else { window.Donate.open(); }
+        } else {
+          window.Donate.open();
+        }
       },
       share(){
         const data = { title: 'MOYAMOVA', url: location.href };
-        if (navigator.share) navigator.share(data).catch(()=>{});
-        else { try { navigator.clipboard.writeText(location.href); alert('Ссылка скопирована'); } catch { prompt('Скопируйте ссылку:', location.href); } }
+        if (navigator.share) {
+          navigator.share(data).catch(()=>{});
+        } else {
+          try {
+            navigator.clipboard.writeText(location.href);
+            alert('Ссылка скопирована');
+          } catch {
+            prompt('Скопируйте ссылку:', location.href);
+          }
+        }
       },
-      legal(){ import('./js/legal.js').then(m => m.Legal.open('terms')).catch(console.warn); },
-      contact(){ location.href = 'mailto:support@moyamova.app'; }
+      legal(){
+        import('./js/legal.js')
+          .then(m => m.Legal && m.Legal.open && m.Legal.open('terms'))
+          .catch(console.warn);
+      },
+      contact(){
+        location.href = 'mailto:support@moyamova.app';
+      }
     };
     document.querySelectorAll('.actions-row-bottom .action-btn').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         const act = btn.dataset.action;
-        (actionsMap[act]||function(){})();
-        if (act !== 'guide') { try { closeMenu(); } catch(_){} }
+        (actionsMap[act] || function(){})();
+        if (act !== 'guide') {
+          try { closeMenu(); } catch(_) {}
+        }
       });
     });
 
     // Service worker
-   if ('serviceWorker' in navigator) {
-     window.addEventListener('load', function() {
-     navigator.serviceWorker.register('./sw.js').catch(console.warn);
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('./sw.js').catch(console.warn);
       });
     }
   </script>
 
- <!-- === CORE + I18N === -->
-<script src="./js/app.core.js" defer></script>
-<script src="./js/i18n.js" defer></script>
+  <!-- === CORE + I18N === -->
+  <script src="./js/app.core.js" defer></script>
+  <script src="./js/i18n.js" defer></script>
 
-<!-- === РЕЕСТР СЛОВАРЕЙ (ДОЛЖЕН БЫТЬ ДО deck.*.js) === -->
-<script src="./js/dicts.js" defer></script>
+  <!-- === РЕЕСТР СЛОВАРЕЙ (ДОЛЖЕН БЫТЬ ДО deck.*.js) === -->
+  <script src="./js/dicts.js" defer></script>
 
-<!-- === ДАННЫЕ СЛОВАРЕЙ === -->
-<script src="./js/deck.de.js" defer></script>
-<script src="./js/deck.en.js" defer></script>
-<script src="./js/deck.fr.js" defer></script>
-<script src="./js/deck.sr.js" defer></script>
-<script src="./js/deck.es.js" defer></script>
+  <!-- === ДАННЫЕ СЛОВАРЕЙ === -->
+  <script src="./js/deck.de.js" defer></script>
+  <script src="./js/deck.en.js" defer></script>
+  <script src="./js/deck.fr.js" defer></script>
+  <script src="./js/deck.sr.js" defer></script>
+  <script src="./js/deck.es.js" defer></script>
   
-<!-- === ЛОГИКА (ядро) === -->
-<script src="./js/app.decks.js" defer></script>
-<script src="./js/app.trainer.js" defer></script>
-<script src="./js/app.favorites.js" defer></script>
-<script src="./js/app.mistakes.js" defer></script>
+  <!-- === ЛОГИКА (ядро) === -->
+  <script src="./js/app.decks.js" defer></script>
+  <script src="./js/app.trainer.js" defer></script>
+  <script src="./js/app.favorites.js" defer></script>
+  <script src="./js/app.mistakes.js" defer></script>
 
-<!-- === Мост виртуальных словарей (ошибки) === -->
-<script src="./js/app.decks.bridge.js" defer></script>
+  <!-- === Мост виртуальных словарей (ошибки / избранное) === -->
+  <script src="./js/app.decks.bridge.js" defer></script>
 
-<!-- === UI надстройки (безопасные) === -->
-<script src="./js/ui.bus.js" defer></script>
-<script src="./js/ui.stats.core.js" defer></script>
-<script src="./js/ui.lifecycle.js" defer></script>
-<script src="./js/ui.options.safe.js" defer></script>
-<script src="./js/ui.sets.done.js" defer></script>
-<script src="./js/ui.progress.scope.js" defer></script>
-<script src="./js/ui.state.js" defer></script>
+  <!-- === UI надстройки === -->
+  <script src="./js/ui.bus.js" defer></script>
+  <script src="./js/ui.stats.core.js" defer></script>
+  <script src="./js/ui.lifecycle.js" defer></script>
+  <script src="./js/ui.options.safe.js" defer></script>
+  <script src="./js/ui.sets.done.js" defer></script>
+  <script src="./js/ui.progress.scope.js" defer></script>
+  <script src="./js/ui.state.js" defer></script>
 
-<!-- === Экраны === -->
-<script src="./js/view.dicts.js" defer></script>
-<script src="./js/view.mistakes.js" defer></script>
-<script src="./js/view.favorites.js" defer></script>
-<!-- === ГЛАВНАЯ === -->
-<script src="./js/app.backup.js" defer></script>
-<script src="./js/home.js" defer></script>
+  <!-- === Экраны === -->
+  <script src="./js/view.dicts.js" defer></script>
+  <script src="./js/view.mistakes.js" defer></script>
+  <script src="./js/view.favorites.js" defer></script>
+  <script src="./js/view.stats.js" defer></script>
 
-<script src="./js/ui.swipe.js" defer></script>
+  <!-- === ГЛАВНАЯ / роутер === -->
+  <script src="./js/app.backup.js" defer></script>
+  <script src="./js/home.js" defer></script>
 
-<!-- === МОДУЛИ (если нужно) === -->
-<script type="module" src="./js/legal.js"></script>
+  <!-- свайпы между экранами -->
+  <script src="./js/ui.swipe.js" defer></script>
+
+  <!-- === МОДУЛИ === -->
+  <script type="module" src="./js/legal.js"></script>
   
   <!-- Заглушка для альбомной ориентации -->
   <div class="rotate-lock" role="dialog" aria-modal="true" aria-live="polite">
@@ -425,6 +499,7 @@
       </div>
     </div>
   </div>
+
   <script src="./js/theme.js" defer></script>
   <script src="./js/updates.js" defer></script>
   <script src="./js/ga.consent.js" defer></script>

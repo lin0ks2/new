@@ -665,7 +665,15 @@
         A.ViewFavorites && A.ViewFavorites.mount && A.ViewFavorites.mount();
         return;
       }
-
+    if (action === 'stats') {
+      if (App.ViewStats && typeof App.ViewStats.mount === 'function') {
+        App.ViewStats.mount();
+      } else {
+        console.warn('ViewStats не загружен, показываю заглушку');
+        app.innerHTML = '<div class="home"><section class="card"><h3>Статистика</h3><p>Контент скоро появится.</p></section></div>';
+      }
+      return;
+    }
       const uk = getUiLang() === 'uk';
       const titles = { dicts: uk ? 'Словники' : 'Словари', fav: uk ? 'Вибране' : 'Избранное', mistakes: uk ? 'Мої помилки' : 'Мои ошибки', stats: uk ? 'Статистика' : 'Статистика' };
       const name = titles[action] || (uk ? 'Екран' : 'Экран');

@@ -16,7 +16,7 @@
     const uk = getUiLang() === 'uk';
     const i = (A.i18n && A.i18n()) || null;
     return {
-      title: (i && i.statsTitle) || (uk ? 'Статистика вивчення' : 'Статистика изучения'),
+      title: (i && i.statsTitle) || (uk ? 'Статистика' : 'Статистика'),
       byLangTitle: (i && i.statsByLangTitle) || (uk ? 'За мовами' : 'По языкам'),
       fallbackPosName: function (pos) {
         const mapRu = {

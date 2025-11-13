@@ -8,16 +8,27 @@
 
   const A = window.App || (window.App = {});
 
-  // --- Вспомогательные функции -----------------------------------
+  // --- Helpers ---------------------------------------------------
+
+  function getUiLang() {
+    try {
+      if (A.settings) {
+        if (A.settings.uiLang) return A.settings.uiLang;
+        if (A.settings.lang) return A.settings.lang;
+      }
+      const htmlLang = document.documentElement.getAttribute('lang');
+      if (htmlLang) return htmlLang;
+    } catch (_) {}
+    return 'ru';
+  }
 
   function posFromDeckKey(deckKey) {
-    // ожидаем форматы типа "de_nouns", "en_verbs" и т.п.
     const parts = String(deckKey || '').split('_');
     return parts[1] || 'other';
   }
 
-  function nicePosName(pos, lang) {
-    // можно локализовать через i18n, пока — грубый маппинг
+  function nicePosName(pos, uiLang) {
+    const isUk = uiLang === 'uk';
     const mapRu = {
       nouns: 'Существительные',
       verbs: 'Глаголы',
@@ -26,7 +37,16 @@
       phrases: 'Фразы',
       other: 'Другое'
     };
-    return mapRu[pos] || pos;
+    const mapUk = {
+      nouns: 'Іменники',
+      verbs: 'Дієслова',
+      adj: 'Прикметники',
+      adv: 'Прислівники',
+      phrases: 'Фрази',
+      other: 'Інше'
+    };
+    const dict = isUk ? mapUk : mapRu;
+    return dict[pos] || (isUk ? pos : pos);
   }
 
   function percent(part, total) {
@@ -35,8 +55,70 @@
   }
 
   function degreesFromPercent(p) {
-    // 0–100 → 0–360deg
     return Math.round((p / 100) * 360);
+  }
+
+  function flagForLangBucket(langBucket) {
+    const lang = langBucket.lang;
+    const decks = langBucket.decks || [];
+    if (A.Decks && typeof A.Decks.flagForKey === 'function' && decks.length) {
+      try {
+        const f = A.Decks.flagForKey(decks[0].key);
+        if (f) return f;
+      } catch (_) {}
+    }
+    const map = {
+      de: '🇩🇪',
+      en: '🇬🇧',
+      fr: '🇫🇷',
+      es: '🇪🇸',
+      sr: '🇷🇸',
+      ru: '🇷🇺',
+      uk: '🇺🇦'
+    };
+    return map[lang] || lang.toUpperCase();
+  }
+
+  // --- I18N для страницы -----------------------------------------
+
+  function getTexts() {
+    const uiLang = getUiLang();
+    const isUk = uiLang === 'uk';
+
+    const fromI18n = (A.i18n && A.i18n()) || null;
+    // Если когда-то добавишь ключи в глобальный i18n — можно использовать их тут.
+
+    return {
+      uiLang,
+      title: (fromI18n && fromI18n.statsTitle) ||
+        (isUk ? 'Статистика вивчення' : 'Статистика изучения'),
+      learnedTotal: (fromI18n && fromI18n.statsLearnedTotal) ||
+        (isUk ? 'Вивчено слів всього' : 'Выучено слов всего'),
+      byLangTitle: (fromI18n && fromI18n.statsByLangTitle) ||
+        (isUk ? 'За мовами' : 'По языкам'),
+      posName: function (pos) { return nicePosName(pos, uiLang); },
+      learnedLang: (fromI18n && fromI18n.statsLearnedLang) ||
+        (isUk ? 'За цією мовою' : 'По этому языку'),
+      learnedLangShort: function (learned, total) {
+        return isUk
+          ? ('Вивчено ' + learned + ' з ' + total + ' слів')
+          : ('Выучено ' + learned + ' из ' + total + ' слов');
+      },
+      decksSummary: function (started, completed, totalDecks) {
+        return isUk
+          ? ('Словників: ' + totalDecks +
+             ' • розпочато: ' + started +
+             ' • завершено: ' + completed)
+          : ('Словарей: ' + totalDecks +
+             ' • начато: ' + started +
+             ' • завершено: ' + completed);
+      },
+      langFilterLabel: isUk ? 'Мова тренування' : 'Язык тренировки',
+      placeholderTitle: isUk ? 'Активність і якість' : 'Активность и качество',
+      placeholderText: isUk
+        ? 'Тут пізніше з’явиться статистика за часом у застосунку, регулярністю та якістю запам’ятовування.'
+        : 'Здесь позже появится статистика по времени в приложении, регулярности и качеству запоминания.'
+    };
   }
 
   // --- Подсчёт статистики ----------------------------------------
@@ -44,24 +126,26 @@
   function computeStats() {
     const decksApi = A.Decks;
     const trainer = A.Trainer;
+    const rawDecks = window.decks || {};
 
-    const byLang = {};   // { lang: { totalWords, learnedWords, byPos:{pos:{total,learned}}, decks:[...] } }
+    const byLang = {};   // lang -> bucket
     const globalStat = {
       totalWords: 0,
       learnedWords: 0,
-      byPos: {} // { pos: { total, learned } }
+      byPos: {} // pos -> { total, learned }
     };
 
-    if (!decksApi || !decksApi.resolveDeckByKey) {
-      return { global: globalStat, byLang: {} };
+    if (!decksApi || !trainer || typeof trainer.isLearned !== 'function') {
+      return { global: globalStat, byLang: [] };
     }
 
-    const dictRegistry = A.dictRegistry || {};
-    const knownDeckKeys = dictRegistry.availableKeys || Object.keys(window.decks || {});
+    // Берём только реальные деки из window.decks, чтобы
+    // статистика работала и после восстановления из бэкапа.
+    const deckKeys = Object.keys(rawDecks).filter(function (k) {
+      return Array.isArray(rawDecks[k]) && rawDecks[k].length;
+    });
 
-    knownDeckKeys.forEach(function (deckKey) {
-      if (!deckKey) return;
-
+    deckKeys.forEach(function (deckKey) {
       let lang;
       try {
         lang = decksApi.langOfKey(deckKey);
@@ -88,17 +172,15 @@
         langBucket.totalWords += 1;
         globalStat.totalWords += 1;
 
-        const posBucketLang = (langBucket.byPos[pos] = langBucket.byPos[pos] || { pos, total: 0, learned: 0 });
-        const posBucketGlobal = (globalStat.byPos[pos] = globalStat.byPos[pos] || { pos, total: 0, learned: 0 });
+        const posBucketLang = (langBucket.byPos[pos] = langBucket.byPos[pos] || { pos: pos, total: 0, learned: 0 });
+        const posBucketGlobal = (globalStat.byPos[pos] = globalStat.byPos[pos] || { pos: pos, total: 0, learned: 0 });
 
         posBucketLang.total += 1;
         posBucketGlobal.total += 1;
 
         let isLearned = false;
         try {
-          if (trainer && typeof trainer.isLearned === 'function') {
-            isLearned = !!trainer.isLearned(w, deckKey);
-          }
+          isLearned = !!trainer.isLearned(w, deckKey);
         } catch (_) {}
 
         if (isLearned) {
@@ -110,7 +192,6 @@
         }
       });
 
-      // инфо по словарю
       let deckName = '';
       try {
         deckName = decksApi.resolveNameByKey(deckKey) || deckKey;
@@ -126,7 +207,6 @@
       });
     });
 
-    // сортируем языки по количеству выученных слов
     const langList = Object.values(byLang).sort(function (a, b) {
       return (b.learnedWords || 0) - (a.learnedWords || 0);
     });
@@ -137,7 +217,7 @@
     };
   }
 
-  // --- Рендер круговых диаграмм ----------------------------------
+  // --- Рендер кругов ---------------------------------------------
 
   function renderCircle(label, primaryText, subText, part, total) {
     const p = percent(part, total);
@@ -154,7 +234,7 @@
     );
   }
 
-  // --- Рендер глобального блока ----------------------------------
+  // --- Глобальный блок -------------------------------------------
 
   function renderGlobalSection(stat, t) {
     const total = stat.totalWords || 0;
@@ -163,7 +243,7 @@
     const circleMain = renderCircle(
       t.learnedTotal,
       percent(learned, total) + '%',
-      learned + ' из ' + total,
+      learned + ' / ' + total,
       learned,
       total
     );
@@ -195,13 +275,52 @@
     );
   }
 
-  // --- Рендер блока "по языкам" ----------------------------------
+  // --- Блок по языкам --------------------------------------------
 
-  function renderLangSection(langStats, t) {
+  function renderLangSection(langStats, t, activeLangCode) {
+    if (!langStats.length) {
+      return '';
+    }
+
+    // Языки, по которым есть прогресс
+    const withProgress = langStats.filter(function (ls) {
+      return (ls.learnedWords || 0) > 0;
+    });
+
+    const langsForFilter = withProgress.length ? withProgress : langStats;
+
+    // Определяем активный язык:
+    let activeLang = activeLangCode;
+    if (!activeLang) {
+      if (withProgress.length) activeLang = withProgress[0].lang;
+      else activeLang = langStats[0].lang;
+    }
+
+    // Кнопки-флажки, если языков > 1
+    let switchHtml = '';
+    if (langsForFilter.length > 1) {
+      const chips = langsForFilter.map(function (ls) {
+        const isActive = ls.lang === activeLang;
+        return (
+          '<button class="stats-lang-chip' + (isActive ? ' is-active' : '') + '" ' +
+                  'type="button" data-lang="' + ls.lang + '">' +
+            '<span class="stats-lang-chip__flag">' + flagForLangBucket(ls) + '</span>' +
+            '<span class="stats-lang-chip__label">' + ls.lang.toUpperCase() + '</span>' +
+          '</button>'
+        );
+      }).join('');
+
+      switchHtml =
+        '<div class="stats-lang-switch" aria-label="' + t.langFilterLabel + '">' +
+          chips +
+        '</div>';
+    }
+
     const items = langStats.map(function (langStat) {
       const total = langStat.totalWords || 0;
       const learned = langStat.learnedWords || 0;
       const langCode = langStat.lang;
+      const isActive = langCode === activeLang;
 
       const posCircles = Object.keys(langStat.byPos).map(function (pos) {
         const bucket = langStat.byPos[pos];
@@ -218,16 +337,15 @@
         );
       }).join('');
 
-      // словари: сколько начато (learned>0), сколько полностью пройдено
       let started = 0;
       let completed = 0;
       langStat.decks.forEach(function (d) {
         if (d.learnedWords > 0) started += 1;
-        if (d.learnedWords >= d.totalWords && d.totalWords > 0) completed += 1;
+        if (d.totalWords > 0 && d.learnedWords >= d.totalWords) completed += 1;
       });
 
       return (
-        '<article class="stats-lang-card">' +
+        '<article class="stats-lang-card' + (isActive ? ' is-active' : '') + '" data-lang="' + langCode + '">' +
           '<header class="stats-lang-card__header">' +
             '<div class="stats-lang-card__title">' +
               '<span class="stats-lang-card__lang">' + langCode.toUpperCase() + '</span>' +
@@ -239,7 +357,6 @@
               t.decksSummary(started, completed, langStat.decks.length) +
             '</div>' +
           '</header>' +
-
           '<div class="stats-lang-card__body">' +
             '<div class="stats-lang-card__main-circle">' +
               renderCircle(
@@ -259,33 +376,72 @@
     return (
       '<section class="stats-section stats-section--langs">' +
         '<h2 class="stats-subtitle">' + t.byLangTitle + '</h2>' +
+        switchHtml +
         '<div class="stats-lang-list">' + items + '</div>' +
       '</section>'
     );
   }
 
-  // --- Локальная "i18n" для страницы статистики ------------------
+  // --- Плейсхолдер для будущих метрик ----------------------------
 
-  function getTexts() {
-    // можно потом подвязать на App.i18n, пока — простой варик
-    return {
-      title: 'Статистика изучения',
-      learnedTotal: 'Выучено слов всего',
-      byLangTitle: 'По языкам',
-      posName: function (pos) { return nicePosName(pos); },
-      learnedLang: 'По этому языку',
-      learnedLangShort: function (learned, total) {
-        return 'Выучено ' + learned + ' из ' + total + ' слов';
-      },
-      decksSummary: function (started, completed, totalDecks) {
-        return 'Словарей: ' + totalDecks +
-               ' • начато: ' + started +
-               ' • завершено: ' + completed;
-      }
-    };
+  function renderPlaceholderSection(t) {
+    return (
+      '<section class="stats-section stats-section--placeholder">' +
+        '<h2 class="stats-subtitle">' + t.placeholderTitle + '</h2>' +
+        '<p class="stats-placeholder">' + t.placeholderText + '</p>' +
+      '</section>'
+    );
   }
 
-  // --- Публичный API представления -------------------------------
+  // --- JS для переключения языков -------------------------------
+
+  function attachLangSwitchHandlers(root) {
+    const chips = root.querySelectorAll('.stats-lang-switch .stats-lang-chip');
+    if (!chips.length) return;
+
+    chips.forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        const lang = this.getAttribute('data-lang');
+        // активный чип
+        chips.forEach(function (c) {
+          c.classList.toggle('is-active', c === chip);
+        });
+        // карточки языков
+        const cards = root.querySelectorAll('.stats-lang-card');
+        cards.forEach(function (card) {
+          const cardLang = card.getAttribute('data-lang');
+          card.classList.toggle('is-active', cardLang === lang);
+        });
+      });
+    });
+  }
+
+  // --- Определение текущего языка тренировки --------------------
+
+  function detectActiveTrainLang(statsByLang) {
+    if (!statsByLang || !statsByLang.length) return null;
+
+    // Пытаемся взять язык активной деки из тренера
+    try {
+      if (A.Trainer && typeof A.Trainer.getDeckKey === 'function' &&
+          A.Decks && typeof A.Decks.langOfKey === 'function') {
+        const dk = A.Trainer.getDeckKey();
+        if (dk) {
+          const lang = A.Decks.langOfKey(dk);
+          if (lang && statsByLang.some(function (b) { return b.lang === lang; })) {
+            return lang;
+          }
+        }
+      }
+    } catch (_) {}
+
+    // fallback: первый язык с прогрессом, потом просто первый
+    const withProgress = statsByLang.filter(function (b) { return (b.learnedWords || 0) > 0; });
+    if (withProgress.length) return withProgress[0].lang;
+    return statsByLang[0].lang;
+  }
+
+  // --- Публичный API --------------------------------------------
 
   function mount() {
     const root = document.getElementById('app');
@@ -294,20 +450,18 @@
     const t = getTexts();
     const stats = computeStats();
 
+    const activeLang = detectActiveTrainLang(stats.byLang);
+
     const html =
       '<div class="stats-page">' +
         renderGlobalSection(stats.global, t) +
-        renderLangSection(stats.byLang, t) +
-        // пока просто плейсхолдер под будущие блоки по времени, качеству и т.п.
-        '<section class="stats-section stats-section--placeholder">' +
-          '<h2 class="stats-subtitle">Активность и качество</h2>' +
-          '<p class="stats-placeholder">' +
-            'Здесь позже появится статистика по времени в приложении, регулярности и качеству запоминания.' +
-          '</p>' +
-        '</section>' +
+        renderLangSection(stats.byLang, t, activeLang) +
+        renderPlaceholderSection(t) +
       '</div>';
 
     root.innerHTML = html;
+
+    attachLangSwitchHandlers(root);
   }
 
   A.ViewStats = {

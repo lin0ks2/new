@@ -43,7 +43,7 @@
               ' • завершено: ' +
               completed;
       },
-      // fallback только на случай, если почему-то не нашли имя словаря
+      // fallback на случай, если не нашли имя словаря
       fallbackPosName: function (pos) {
         const uk = getUiLang() === 'uk';
         const mapRu = {
@@ -274,9 +274,7 @@
     });
 
     other.sort(function (a, b) {
-      return (
-        OTHER_POS_ORDER.indexOf(a.pos) - OTHER_POS_ORDER.indexOf(b.pos)
-      );
+      return OTHER_POS_ORDER.indexOf(a.pos) - OTHER_POS_ORDER.indexOf(b.pos);
     });
 
     return { core: core, other: other };
@@ -291,8 +289,7 @@
       .map(function (bucket, idx) {
         const p = percent(bucket.learned, bucket.total);
         const angle = degreesFromPercent(p);
-        const scale =
-          ringCount === 1 ? 1 : 1 - (idx * 0.18); // 1, 0.82, 0.64...
+        const scale = ringCount === 1 ? 1 : 1 - idx * 0.18; // 1, 0.82, 0.64...
         const color = POS_COLORS[bucket.pos] || POS_COLORS.other;
 
         return (
@@ -314,10 +311,7 @@
       .map(function (bucket) {
         const color = POS_COLORS[bucket.pos] || POS_COLORS.other;
         const label = resolvePosLabel(bucket, texts);
-        const val =
-          bucket.learned + ' / ' + bucket.total + ' · ' +
-          percent(bucket.learned, bucket.total) +
-          '%';
+        const val = bucket.learned + ' / ' + bucket.total; // без процентов
         return (
           '<div class="stats-ring-legend__item" style="--ring-color:' +
           color +
@@ -334,9 +328,7 @@
       })
       .join('');
 
-    const textsMap = t();
-    const caption =
-      groupKind === 'core' ? textsMap.coreTitle : textsMap.otherTitle;
+    const caption = groupKind === 'core' ? texts.coreTitle : texts.otherTitle;
 
     return (
       '<div class="stats-ring-set stats-ring-set--' +
@@ -377,8 +369,7 @@
         let completed = 0;
         langStat.decks.forEach(function (d) {
           if (d.learnedWords > 0) started += 1;
-          if (d.totalWords > 0 && d.learnedWords >= d.totalWords)
-            completed += 1;
+          if (d.totalWords > 0 && d.learnedWords >= d.totalWords) completed += 1;
         });
 
         const split = splitPosBuckets(langStat);

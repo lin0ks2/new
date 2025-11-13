@@ -115,6 +115,34 @@
     other: 'var(--stats-color-other, #9ca3af)'
   };
 
+  /* ------------ ключевой момент: откуда берём "выучено" --------- */
+
+  function isWordLearned(word) {
+    try {
+      const sMax =
+        A.Trainer && typeof A.Trainer.starsMax === 'function'
+          ? A.Trainer.starsMax()
+          : 5;
+
+      const starsMap = (A.state && A.state.stars) || {};
+
+      const starKeyFn =
+        typeof A.starKey === 'function'
+          ? A.starKey
+          : function fallbackStarKey(id) {
+              return String(id);
+            };
+
+      const sk = starKeyFn(word.id);
+      const raw = starsMap[sk] || 0;
+      const sc = Math.max(0, Math.min(sMax, raw));
+
+      return sc >= sMax;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function flagForLangBucket(langBucket) {
     const lang = langBucket.lang;
     const decks = langBucket.decks || [];
@@ -144,7 +172,6 @@
 
   function computeStats() {
     const decksApi = A.Decks;
-    const trainer = A.Trainer;
     const rawDecks = window.decks || {};
     const byLang = {};
 
@@ -196,16 +223,7 @@
 
         posBucket.total += 1;
 
-        let isLearned = false;
-        if (trainer && typeof trainer.isLearned === 'function') {
-          try {
-            isLearned = !!trainer.isLearned(w, deckKey);
-          } catch (_) {
-            isLearned = false;
-          }
-        }
-
-        if (isLearned) {
+        if (isWordLearned(w)) {
           langBucket.learnedWords += 1;
           posBucket.learned += 1;
           deckLearned += 1;

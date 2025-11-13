@@ -62,6 +62,11 @@
              ' • начато: ' + started +
              ' • завершено: ' + completed);
       },
+      // подписи для нового summary-блока
+      summaryMainLabel: uk ? 'Вивчено слів' : 'Выучено слов',
+      tagDecks:   uk ? 'Словників'  : 'Словарей',
+      tagStarted: uk ? 'Розпочато'  : 'Начато',
+      tagCompleted: uk ? 'Завершено' : 'Завершено',
       placeholderTitle: uk ? 'Активність і якість' : 'Активность и качество',
       placeholderText: uk
         ? 'Тут пізніше з’явиться статистика за часом у застосунку, регулярністю та якістю запам’ятовування.'
@@ -259,17 +264,20 @@
         if (d.totalWords > 0 && d.learnedWords >= d.totalWords) completed += 1;
       });
 
-      // ВАЖНО: здесь убираем код языка (DE/EN/...) в заголовке карточки
+      // шапка: аккуратный summary-блок вместо длинной строки
       return (
         '<article class="stats-lang-card' + (isActive ? ' is-active' : '') + '" data-lang="' + langCode + '">' +
           '<header class="stats-lang-card__header">' +
-            '<div class="stats-lang-card__title">' +
-              '<span class="stats-lang-card__meta">' +
-                texts.learnedLangShort(learned, total) +
-              '</span>' +
-            '</div>' +
-            '<div class="stats-lang-card__decks">' +
-              texts.decksSummary(started, completed, langStat.decks.length) +
+            '<div class="stats-summary">' +
+              '<div class="stats-summary-main">' +
+                '<div class="stats-summary-main__value">' + learned + ' / ' + total + '</div>' +
+                '<div class="stats-summary-main__label">' + texts.summaryMainLabel + '</div>' +
+              '</div>' +
+              '<div class="stats-summary-tags">' +
+                '<span class="stats-tag">' + texts.tagDecks + ': ' + langStat.decks.length + '</span>' +
+                '<span class="stats-tag">' + texts.tagStarted + ': ' + started + '</span>' +
+                '<span class="stats-tag">' + texts.tagCompleted + ': ' + completed + '</span>' +
+              '</div>' +
             '</div>' +
           '</header>' +
           '<div class="stats-lang-card__body">' +

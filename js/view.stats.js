@@ -117,30 +117,37 @@
 
   /* ------------ ключевой момент: откуда берём "выучено" --------- */
 
-  function isWordLearned(word) {
+  function isWordLearned(word, deckKey) {
+    const trainer = A.Trainer;
+    // 1) Основной путь — через state.stars + App.starKey (как в app.decks.js)
     try {
-      const sMax =
-        A.Trainer && typeof A.Trainer.starsMax === 'function'
-          ? A.Trainer.starsMax()
-          : 5;
-
-      const starsMap = (A.state && A.state.stars) || {};
-
-      const starKeyFn =
-        typeof A.starKey === 'function'
-          ? A.starKey
-          : function fallbackStarKey(id) {
-              return String(id);
-            };
-
-      const sk = starKeyFn(word.id);
-      const raw = starsMap[sk] || 0;
-      const sc = Math.max(0, Math.min(sMax, raw));
-
-      return sc >= sMax;
+      if (
+        A.state &&
+        A.state.stars &&
+        typeof A.starKey === 'function' &&
+        trainer &&
+        typeof trainer.starsMax === 'function'
+      ) {
+        const sMax = trainer.starsMax();
+        const starsMap = A.state.stars || {};
+        const sk = A.starKey(word.id, deckKey);
+        const raw = starsMap[sk] || 0;
+        const sc = Math.max(0, Math.min(sMax, raw));
+        return sc >= sMax;
+      }
     } catch (e) {
-      return false;
+      // пойдём в запасной путь
     }
+
+    // 2) Безопасный фоллбэк — доверяем Trainer.isLearned, если он есть
+    try {
+      if (trainer && typeof trainer.isLearned === 'function') {
+        return !!trainer.isLearned(word, deckKey);
+      }
+    } catch (e) {}
+
+    // 3) Если ничего нет — считаем слово невыученным (иначе будет "всё выучено")
+    return false;
   }
 
   function flagForLangBucket(langBucket) {
@@ -174,14 +181,20 @@
     const decksApi = A.Decks;
     const rawDecks = window.decks || {};
     const byLang = {};
+    const langOrder = [];
 
     if (!decksApi) {
       return { byLang: [] };
     }
 
-    const deckKeys = Object.keys(rawDecks).filter(function (k) {
-      return Array.isArray(rawDecks[k]) && rawDecks[k].length;
-    });
+    let deckKeys = [];
+    if (typeof decksApi.builtinKeys === 'function') {
+      deckKeys = decksApi.builtinKeys() || [];
+    } else {
+      deckKeys = Object.keys(rawDecks).filter(function (k) {
+        return Array.isArray(rawDecks[k]) && rawDecks[k].length;
+      });
+    }
 
     deckKeys.forEach(function (deckKey) {
       let lang;
@@ -197,15 +210,17 @@
 
       const pos = posFromDeckKey(deckKey);
 
-      const langBucket =
-        (byLang[lang] =
-          byLang[lang] || {
-            lang: lang,
-            totalWords: 0,
-            learnedWords: 0,
-            byPos: {}, // pos -> { pos, total, learned, sampleDeckKey }
-            decks: [] // [{ key, name, totalWords, learnedWords }]
-          });
+      let langBucket = byLang[lang];
+      if (!langBucket) {
+        langBucket = byLang[lang] = {
+          lang: lang,
+          totalWords: 0,
+          learnedWords: 0,
+          byPos: {}, // pos -> { pos, total, learned, sampleDeckKey }
+          decks: []  // [{ key, name, totalWords, learnedWords }]
+        };
+        langOrder.push(lang);
+      }
 
       let deckLearned = 0;
 
@@ -223,7 +238,7 @@
 
         posBucket.total += 1;
 
-        if (isWordLearned(w)) {
+        if (isWordLearned(w, deckKey)) {
           langBucket.learnedWords += 1;
           posBucket.learned += 1;
           deckLearned += 1;
@@ -245,8 +260,8 @@
       });
     });
 
-    const langList = Object.values(byLang).sort(function (a, b) {
-      return (b.learnedWords || 0) - (a.learnedWords || 0);
+    const langList = langOrder.map(function (lang) {
+      return byLang[lang];
     });
 
     return { byLang: langList };

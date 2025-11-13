@@ -275,6 +275,14 @@
             }
           }
           // остальные экраны подключим позже
+         
+          case 'stats':
+  if (window.App && App.ViewStats && typeof App.ViewStats.mount === 'function') {
+    App.ViewStats.mount();
+  }
+  updateFooterActive('stats');
+  break;
+          
         } catch(e){ console.warn('nav error', e); }
       });
     });

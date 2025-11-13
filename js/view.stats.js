@@ -109,8 +109,6 @@
       fallbackPosName: function (pos) {
         return fallbackPosName(pos, uiLang);
       },
-      learnedLang: (fromI18n && fromI18n.statsLearnedLang) ||
-        (isUk ? 'За цією мовою' : 'По этому языку'),
       learnedLangShort: function (learned, total) {
         return isUk
           ? ('Вивчено ' + learned + ' з ' + total + ' слів')
@@ -142,7 +140,7 @@
 
     const byLang = {}; // lang -> bucket
 
-    if (!decksApi || !trainer || typeof trainer.isLearned !== 'function') {
+    if (!decksApi) {
       return { byLang: [] };
     }
 
@@ -184,10 +182,15 @@
 
         posBucket.total += 1;
 
+        // "Выучено" берём из Trainer.isLearned — это основной источник истины
         let isLearned = false;
-        try {
-          isLearned = !!trainer.isLearned(w, deckKey);
-        } catch (_) { isLearned = false; }
+        if (trainer && typeof trainer.isLearned === 'function') {
+          try {
+            isLearned = !!trainer.isLearned(w, deckKey);
+          } catch (_) {
+            isLearned = false;
+          }
+        }
 
         if (isLearned) {
           langBucket.learnedWords += 1;
@@ -248,7 +251,6 @@
       } catch (_) { label = ''; }
     }
 
-    // если по какой-то причине не нашли имя словаря — fallback
     if (!label) {
       label = t.fallbackPosName(posBucket.pos || '');
     }

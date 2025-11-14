@@ -191,3 +191,44 @@
 .stats-ring-set--core .stats-ring-legend__label {
   flex: 0 1 auto;
 }
+
+/* Блок "Активность" с круглыми точками */
+.stats-section--activity {
+  margin-top: 12px;
+  padding: 0 10px 12px;
+}
+
+.stats-placeholder--activity {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.stats-activity-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+/* Круглая точка активности */
+.stats-activity-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--stats-activity-color, #22c55e);
+  opacity: 0.25;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+/* Уровни интенсивности */
+.stats-activity-dot--lvl0 { opacity: 0.25; }
+.stats-activity-dot--lvl1 { opacity: 0.55; }
+.stats-activity-dot--lvl2 { opacity: 0.8;  transform: scale(1.05); }
+.stats-activity-dot--lvl3 { opacity: 1;    transform: scale(1.15); }
+
+/* Небольшой hover-эффект (для десктопа) */
+@media (hover: hover) {
+  .stats-activity-dot:hover {
+    transform: scale(1.25);
+  }
+}
